@@ -1,14 +1,16 @@
 #!/usr/bin/env python
 
 import argparse
+from email.policy import default
 import pickle
 import h5py
-from keras import optimizers
-from keras.callbacks import ModelCheckpoint
-from keras.layers import Activation, add, BatchNormalization, Conv2D, Dense, Dropout, Flatten, Input, ZeroPadding2D
-from keras.models import load_model, Model
-from keras.regularizers import l2
-from keras.utils import plot_model
+import os
+from tensorflow.keras import optimizers
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Dense, Dropout, Flatten, Input, ZeroPadding2D
+from tensorflow.keras.models import load_model, Model
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.utils import plot_model
 import numpy as np
 
 
@@ -30,20 +32,32 @@ def parse_cli():
         nargs='?',
         type=positive_int,
         action='store',
-        default=10,
+        default=2,
         help='number of training epochs'
     )
     parser.add_argument(
+        '-t', '--train',
         metavar='TRAIN',
         type=str,
         dest='train',
+        default='./artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
+        '-m', '--model',
         metavar='MODEL',
         type=str,
         dest='model',
+        default='./latest_model',
         help='path where to store the model'
+    )
+    parser.add_argument(
+        '-s', '--saveflag',
+        metavar='SAVEFLAG',
+        type=bool,
+        dest='save_flag',
+        default=False,
+        help='Flag to determine whether to enable checkpointing and writing to disk'
     )
 
     return parser.parse_args()
@@ -91,23 +105,27 @@ def build_model(input_shape):
     result = Dense(input_shape[1], activation='sigmoid')(dropout)
 
     model = Model(inputs=input_img, outputs=result)
-    model.compile(optimizer=optimizers.Nadam(lr=1e-4), loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=optimizers.Nadam(learning_rate=1e-4), loss='binary_crossentropy', metrics=['accuracy'])
 
     return model
 
-def train_network(model, data, labels, model_file, epochs):
+def train_network(model, data, labels, model_file, epochs, save_flag):
     plot_model(model, to_file='{}.png'.format(model_file), show_shapes=True)
 
-    checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True, save_weights_only=False, mode='auto')
-    training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9}, callbacks=[checkpoint])
+    if (save_flag):
+        checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True, save_weights_only=False, mode='auto')
+        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9}, callbacks=[checkpoint])
+    else:
+        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9})
 
-    with open('{}.history'.format(model_file), 'wb') as handle:
-        pickle.dump(training.history, handle)
+    if (save_flag):
+        with open('{}.history'.format(model_file), 'wb') as handle:
+            pickle.dump(training.history, handle)
 
 
 if __name__ == '__main__':
     arguments = parse_cli()
     data, labels = preprocess(*load_data(arguments.train))
     model = build_model(input_shape=data.shape[1:])
-    train_network(model, data, labels, arguments.model, arguments.epochs)
+    train_network(model, data, labels, arguments.model, arguments.epochs, arguments.save_flag)
 

@@ -12,9 +12,11 @@ def parse_cli():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
+        '-d', '--data',
         metavar='DATA',
         type=str,
         dest='data',
+        default='./artificial.h5',
         help='path to the HDF5 file that stores the matrices'
     )
 

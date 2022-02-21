@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+import tensorflow as tf
 import h5py
-import keras.models
 import numpy as np
 
 
@@ -36,7 +36,7 @@ def load_data(path):
 
 
 def load_model(model_file):
-    return keras.models.load_model(model_file)
+    return tf.keras.models.load_model(model_file)
 
 def preprocess(data, labels):
     # simply add an additional dimension for the channels for data
