@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import argparse
 import h5py
 import numpy as np

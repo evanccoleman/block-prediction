@@ -1,16 +1,15 @@
-#!/usr/bin/env python
-
 import argparse
 from email.policy import default
 import pickle
 import h5py
 import os
-from tensorflow.keras import optimizers
-from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.layers import Activation, add, BatchNormalization, Conv2D, Dense, Dropout, Flatten, Input, ZeroPadding2D
-from tensorflow.keras.models import load_model, Model
-from tensorflow.keras.regularizers import l2
-from tensorflow.keras.utils import plot_model
+from tensorflow.python.keras import optimizers
+from tensorflow.python.keras.callbacks import ModelCheckpoint
+from tensorflow.python.keras.layers import (Activation, add, Conv2D, Dense, Dropout, Flatten, Input, ZeroPadding2D)
+from tensorflow.python.layers.normalization import BatchNormalization
+from tensorflow.python.keras.models import load_model, Model
+from tensorflow.python.keras.regularizers import l2
+from tensorflow.python.keras.utils import plot_model
 import numpy as np
 
 
