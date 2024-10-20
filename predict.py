@@ -11,13 +11,15 @@ def parse_cli():
         '-m', '--model',
         metavar='MODEL',
         type=str,
-        default='model.h5',
+        default='./latest_model.keras',
         dest='model_file',
         help='path to the model checkpoint file'
     )
     parser.add_argument(
+        '-f', '--file',
         metavar='FILE',
         type=str,
+        default='artificial.h5',
         dest='predict_file',
         help='path to the HDF5 file with the prediction data'
     )

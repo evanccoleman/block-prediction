@@ -477,6 +477,5 @@ latest_model/variables/variables.data-00000-of-00001
 latest_model/saved_model.pb
 latest_model/keras_metadata.pb
 saved_model.pb
-latest_model.png
-latest_model.history
 keras_metadata.pb
+latest_model.keras

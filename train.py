@@ -3,13 +3,13 @@ from email.policy import default
 import pickle
 import h5py
 import os
-from tensorflow.python.keras import optimizers
-from tensorflow.python.keras.callbacks import ModelCheckpoint
-from tensorflow.python.keras.layers import (Activation, add, Conv2D, Dense, Dropout, Flatten, Input, ZeroPadding2D)
-from tensorflow.python.layers.normalization import BatchNormalization
-from tensorflow.python.keras.models import load_model, Model
-from tensorflow.python.keras.regularizers import l2
-from tensorflow.python.keras.utils import plot_model
+from tensorflow.keras import optimizers
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.layers import (Activation, add, Conv2D, Dense, Dropout, Flatten, Input, ZeroPadding2D)
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.models import load_model, Model
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.utils import plot_model
 import numpy as np
 
 
@@ -47,7 +47,7 @@ def parse_cli():
         metavar='MODEL',
         type=str,
         dest='model',
-        default='./latest_model',
+        default='./latest_model.keras',
         help='path where to store the model'
     )
     parser.add_argument(
@@ -55,7 +55,7 @@ def parse_cli():
         metavar='SAVEFLAG',
         type=bool,
         dest='save_flag',
-        default=False,
+        default=True,
         help='Flag to determine whether to enable checkpointing and writing to disk'
     )
 
