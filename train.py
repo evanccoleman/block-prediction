@@ -109,7 +109,7 @@ def build_model(input_shape):
     return model
 
 def train_network(model, data, labels, model_file, epochs, save_flag):
-    plot_model(model, to_file='{}.png'.format(model_file), show_shapes=True)
+    #plot_model(model, to_file='{}.png'.format(model_file), show_shapes=True)
 
     if (save_flag):
         checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True, save_weights_only=False, mode='auto')

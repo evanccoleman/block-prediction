@@ -479,3 +479,5 @@ latest_model/keras_metadata.pb
 saved_model.pb
 keras_metadata.pb
 latest_model.keras
+artificial.h5
+
