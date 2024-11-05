@@ -37,6 +37,8 @@ model = models.Sequential([
     layers.MaxPooling2D(pool_size=(2, 2)),  # Max-pooling layer
     layers.Flatten(),  # Flatten the output
     layers.Dense(128, activation='relu'),  # Fully connected layer
+    layers.Dense(128, activation='relu'),  # Fully connected layer
+    layers.Dense(128, activation='relu'),  # Fully connected layer
     layers.Dense(10, activation='softmax')  # Output layer
 ])
 
