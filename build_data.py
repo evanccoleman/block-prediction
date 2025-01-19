@@ -45,7 +45,7 @@ def generate_block_sizes(matrix_size, min_block_size=2, max_block_size=100):
     return block_sizes
 
 # GENERATE THE MATRIX
-size = 1000
+size = 100
 max_block = size/5
 
 # Get block sizes to ensure blocks stretch across the diagonal
@@ -53,7 +53,7 @@ block_sizes = generate_block_sizes(size, min_block_size=2, max_block_size=max_bl
 #print(block_sizes)
 
 
-matrix = create_matrix(block_sizes, diagonal_noise=3000, matrix_noise=100000, matrix_size=1000, zero_prob=.20)
+matrix = create_matrix(block_sizes, diagonal_noise=30, matrix_noise=90, matrix_size=100, zero_prob=.20)
 #print(matrix)
 matplotlib.pyplot.spy(matrix)
 matplotlib.pyplot.show()
