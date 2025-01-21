@@ -3,67 +3,75 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 
+# function takes in matrix size, range of block sizes, noise, and de-noise
+def generate_data(matrix_size, block_sizes, noise=0.2, de_noise=0.2):
 
-def create_matrix(block_sizes, diagonal_noise=10, matrix_noise=10, matrix_size=100, zero_prob=.20):
+    # initialize a numpy array of all zeros
     matrix = np.zeros((matrix_size, matrix_size))
-    matplotlib.pyplot.spy(matrix)
 
-    # Place blocks on diagonal
-    curr_index = 0
-    for size in block_sizes:
-        if curr_index + size > matrix_size:
-            break # do not let blocks exceed matrix size
-        # create block with added noise
-        block = np.random.randint(1, 10, (size, size))
-        zero_mask = np.random.rand(size, size) < zero_prob
-        block[zero_mask] = 0
+    # in order to add/remove noise later, and avoid the blocks, we need to create a mask
+    block_mask = np.zeros_like(matrix, dtype=bool)
 
-        # Place the block in the matrix
-        matrix[curr_index:curr_index + size, curr_index:curr_index + size] = block
-        curr_index += size + 2  # Leave space between blocks
-    # Add noise to diagonal
-    # NEED TO CHANGE THIS TO ADD NOISE TO BLOCKS
-    for n in range(diagonal_noise):
-        i = np.random.randint(0, matrix_size)
-        j = np.clip(i + np.random.randint(-3, 4), 0, matrix_size - 1)  # Keep the index near diagonal
-        matrix[i, j] = np.random.randint(1, 10)
-    # Add noise to entire thing
-    # need to adjust because it's hard to add a lot of noise
-    for n in range(matrix_noise):
-        i = np.random.randint(0, matrix_size)
-        j = np.random.randint(0, matrix_size)
-        matrix[i, j] = np.random.randint(1000, 10000)
+    # starting pos
+    row, col = 0, 0
+
+    # first block: set the entries in the blocks along the diagonal to 1
+    for block in block_sizes:
+        if row + block > matrix_size or col + block > matrix_size:
+            break # don't let block exceed matrix boundaries
+
+        # fill block with ones
+        matrix[row:row+block, col:col+block] = 1
+        block_mask[row:row+block, col:col+block] = True # also add to block_mask
+
+        # move diagonally
+        row += block
+        col += block
+
+    # second block: look only at entries that are 1 and flip them to a 0 with a probability
+    # related to the "de_noise" parameter
+    denoise_mask = np.random.rand(*matrix.shape) < de_noise # Creates a boolean mask
+    matrix[denoise_mask] = 0 # Sets these "de_noise" positions to a 0
+
+    # third block: look only at the entries that are 0 (preferably not in the original block space)
+    # and flip them to a 1 with probability related to the "noise" parameter
+    noise_mask = np.random.rand(*matrix.shape) < noise
+
+    # Combine noise_mask and block_mask to ensure we avoid the block positions
+    noise_mask = np.logical_and(noise_mask, ~block_mask)
+
+    # apply noise to matrix
+    matrix[noise_mask] = 1
+
+    # SAVE THE NEW MATRIX TO AN H5 FILE
+    with h5py.File('generated_matrix.h5', 'w') as f:
+        f.create_dataset('new_matrix', data=matrix)
+    print("Matrix saved to 'generated_matrix.h5'")
     return matrix
 
-def generate_block_sizes(matrix_size, min_block_size=2, max_block_size=100):
-    block_sizes = []
-    space_left = matrix_size
-    while space_left > min_block_size:
-        block_size = np.random.randint(min_block_size, min(max_block_size, space_left) + 1)
-        block_sizes.append(block_size)
-        space_left -= block_size
-    return block_sizes
+# this will generate a list of block sizes
+# gives you control over min and max block sizes
+def generate_block_sizes(matrix_size, block_size_range=(0.05, 0.2)):
+    min_block = int(matrix_size * block_size_range[0])
+    max_block = int(matrix_size * block_size_range[1])
+    blocks = []
+    total_size = 0
 
-# GENERATE THE MATRIX
+    while total_size < matrix_size:
+        block_size = np.random.randint(min_block, max_block)
+        if total_size + block_size > matrix_size:
+            block_size = matrix_size - total_size
+        blocks.append(block_size)
+        total_size += block_size
+
+    return blocks # our list of block sizes
+
+# test out matrix
 size = 100
-max_block = size/5
+block_sizes = generate_block_sizes(size)
 
-# Get block sizes to ensure blocks stretch across the diagonal
-block_sizes = generate_block_sizes(size, min_block_size=2, max_block_size=max_block)
-#print(block_sizes)
-
-
-matrix = create_matrix(block_sizes, diagonal_noise=30, matrix_noise=90, matrix_size=100, zero_prob=.20)
-#print(matrix)
+matrix = generate_data(size, block_sizes)
 matplotlib.pyplot.spy(matrix)
 matplotlib.pyplot.show()
 
-#matrix = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
 
-#matplotlib.pyplot.spy(matrix)
-#matplotlib.pyplot.show()
-
-#diagonal_elements = np.array([1,2,3,4])
-#diagonal_matrix = np.diag(diagonal_elements)
-#matplotlib.pyplot.spy(diagonal_matrix)
-#matplotlib.pyplot.show()
