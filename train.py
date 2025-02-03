@@ -52,20 +52,38 @@ def parse_cli():
     )
     parser.add_argument(
         '-s', '--saveflag',
+
         metavar='SAVEFLAG',
         type=bool,
         dest='save_flag',
         default=True,
         help='Flag to determine whether to enable checkpointing and writing to disk'
     )
+    parser.add_argument(
+        '-d', '--data',
 
+        metavar='DATA',
+        type=str,
+        dest='data',
+        default='matrix_of_128',
+        help='--'
+    )
+    parser.add_argument(
+        '-l', '--labels',
+
+        metavar='LABEL',
+        type=str,
+        dest='labels',
+        default='labels_for_128',
+        help='--'
+    )
     return parser.parse_args()
 
 
-def load_data(path):
+def load_data(path, data, labels):
     with h5py.File(path, 'r') as handle:
-        data = np.array(handle['diagonalset'])
-        labels = np.array(handle['vectorset'])
+        data = np.array(handle[data])
+        labels = np.array(handle[labels])
 
         return data, labels
 
@@ -124,7 +142,7 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
 
 if __name__ == '__main__':
     arguments = parse_cli()
-    data, labels = preprocess(*load_data(arguments.train))
+    data, labels = preprocess(*load_data(arguments.train, arguments.data, arguments.labels))
     model = build_model(input_shape=data.shape[1:])
-    train_network(model, data, labels, arguments.model, arguments.epochs, arguments.save_flag)
+    #train_network(model, data, labels, arguments.model, arguments.epochs, arguments.save_flag)
 
