@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">
+    <!-- Background -->
+    <rect width="600" height="400" fill="#ffffff"/>
+    
+    <!-- Axes -->
+    <line x1="50" y1="350" x2="550" y2="350" stroke="black" stroke-width="2"/>
+    <line x1="50" y1="50" x2="50" y2="350" stroke="black" stroke-width="2"/>
+    
+    <!-- Axis labels -->
+    <text x="570" y="350" font-size="16" text-anchor="end">X</text>
+    <text x="50" y="30" font-size="16" text-anchor="middle">Y</text>
+    
+    <!-- Optimal line of best fit -->
+    <line x1="50" y1="300" x2="550" y2="100" stroke="#FF6B6B" stroke-width="2"/>
+    
+    <!-- Suboptimal line -->
+    <line x1="50" y1="250" x2="550" y2="200" stroke="#9B6B9B" stroke-width="2" stroke-dasharray="4,4"/>
+    
+    <!-- Data points and error lines -->
+    <!-- Point 1 errors -->
+    <line x1="150" y1="250" x2="150" y2="260" stroke="#82C595" stroke-width="2" stroke-dasharray="5,3"/>
+    <line x1="150" y1="250" x2="150" y2="240" stroke="#D1B2D1" stroke-width="2" stroke-dasharray="5,3"/>
+    <circle cx="150" cy="250" r="4" fill="#4A90E2"/>
+    
+    <!-- Point 2 errors -->
+    <line x1="300" y1="200" x2="300" y2="200" stroke="#82C595" stroke-width="2" stroke-dasharray="5,3"/>
+    <line x1="300" y1="200" x2="300" y2="225" stroke="#D1B2D1" stroke-width="2" stroke-dasharray="5,3"/>
+    <circle cx="300" cy="200" r="4" fill="#4A90E2"/>
+    
+    <!-- Point 3 errors -->
+    <line x1="450" y1="150" x2="450" y2="140" stroke="#82C595" stroke-width="2" stroke-dasharray="5,3"/>
+    <line x1="450" y1="150" x2="450" y2="210" stroke="#D1B2D1" stroke-width="2" stroke-dasharray="5,3"/>
+    <circle cx="450" cy="150" r="4" fill="#4A90E2"/>
+    
+    <!-- Legend -->
+    <circle cx="70" cy="380" r="4" fill="#4A90E2"/>
+    <text x="85" y="385" font-size="14">Data points</text>
+    
+    <line x1="170" y1="380" x2="200" y2="380" stroke="#FF6B6B" stroke-width="2"/>
+    <text x="210" y="385" font-size="14">Optimal fit</text>
+    
+    <line x1="300" y1="380" x2="330" y2="380" stroke="#9B6B9B" stroke-width="2" stroke-dasharray="4,4"/>
+    <text x="340" y="385" font-size="14">Suboptimal fit</text>
+    
+    <!-- Title -->
+    <text x="300" y="30" font-size="18" text-anchor="middle" font-weight="bold">Comparing Optimal vs Suboptimal Fit</text>
+</svg>

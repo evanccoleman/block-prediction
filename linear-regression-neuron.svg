@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+    <!-- Background -->
+    <rect width="800" height="500" fill="#ffffff"/>
+    
+    <!-- Bias Neuron - Moved higher -->
+    <circle cx="100" cy="25" r="30" fill="#F5B7B1" stroke="#C0392B" stroke-width="2"/>
+    <text x="100" y="30" text-anchor="middle" font-size="14">1</text>
+    <text x="100" y="55" text-anchor="middle" font-size="12" fill="#666">bias</text>
+    
+    <!-- Input Layer Neurons -->
+    <circle cx="100" cy="125" r="30" fill="#AED6F1" stroke="#2E86C1" stroke-width="2"/>
+    <circle cx="100" cy="225" r="30" fill="#AED6F1" stroke="#2E86C1" stroke-width="2"/>
+    <circle cx="100" cy="325" r="30" fill="#AED6F1" stroke="#2E86C1" stroke-width="2"/>
+    <circle cx="100" cy="425" r="30" fill="#AED6F1" stroke="#2E86C1" stroke-width="2"/>
+    
+    <!-- Input Labels -->
+    <text x="100" y="130" text-anchor="middle" font-size="14">x₁</text>
+    <text x="40" y="130" text-anchor="middle" font-size="14">sqft</text>
+    
+    <text x="100" y="230" text-anchor="middle" font-size="14">x₂</text>
+    <text x="40" y="230" text-anchor="middle" font-size="14">beds</text>
+    
+    <text x="100" y="330" text-anchor="middle" font-size="14">x₃</text>
+    <text x="40" y="330" text-anchor="middle" font-size="14">baths</text>
+    
+    <text x="100" y="430" text-anchor="middle" font-size="14">x₄</text>
+    <text x="40" y="430" text-anchor="middle" font-size="14">age</text>
+    
+    <!-- Output Neuron -->
+    <circle cx="500" cy="225" r="30" fill="#A9DFBF" stroke="#27AE60" stroke-width="2"/>
+    <text x="500" y="230" text-anchor="middle" font-size="14">ŷ</text>
+    <text x="580" y="230" text-anchor="start" font-size="14">predicted price</text>
+    
+    <!-- Connections with Weights -->
+    <line x1="130" y1="25" x2="470" y2="225" stroke="#666" stroke-width="2"/>
+    <text x="270" y="100" text-anchor="middle" font-size="14">b</text>
+    
+    <line x1="130" y1="125" x2="470" y2="225" stroke="#666" stroke-width="2"/>
+    <text x="270" y="150" text-anchor="middle" font-size="14">w₁</text>
+    
+    <line x1="130" y1="225" x2="470" y2="225" stroke="#666" stroke-width="2"/>
+    <text x="270" y="210" text-anchor="middle" font-size="14">w₂</text>
+    
+    <line x1="130" y1="325" x2="470" y2="225" stroke="#666" stroke-width="2"/>
+    <text x="270" y="300" text-anchor="middle" font-size="14">w₃</text>
+    
+    <line x1="130" y1="425" x2="470" y2="225" stroke="#666" stroke-width="2"/>
+    <text x="270" y="350" text-anchor="middle" font-size="14">w₄</text>
+    
+    <!-- Equation -->
+    <text x="400" y="475" text-anchor="middle" font-size="16">ŷ = b + w₁x₁ + w₂x₂ + w₃x₃ + w₄x₄</text>
+    
+    <!-- Title -->
+    <text x="400" y="40" text-anchor="middle" font-size="20" font-weight="bold">Linear Regression as a Neural Network</text>
+    
+    <!-- Layer Labels -->
+    <text x="100" y="485" text-anchor="middle" font-size="16">Input Layer</text>
+    <text x="500" y="485" text-anchor="middle" font-size="16">Output Layer</text>
+</svg>
