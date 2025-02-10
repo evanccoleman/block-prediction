@@ -39,7 +39,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./artificial.h5', #'./artificial.h5',
+        default='./synthetic_data.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -59,25 +59,41 @@ def parse_cli():
         default=True,
         help='Flag to determine whether to enable checkpointing and writing to disk'
     )
+    parser.add_argument(
+        '-d', '--data',
 
+        metavar='DATA',
+        type=str,
+        dest='data',
+        default='matrix_of_128',
+        help='--'
+    )
+    parser.add_argument(
+        '-l', '--labels',
+
+        metavar='LABEL',
+        type=str,
+        dest='labels',
+        default='labels_for_128',
+        help='--'
+    )
     return parser.parse_args()
 
 
 def load_data(path):
     with h5py.File(path, 'r') as handle:
-        data = np.array(handle['diagonalset'])
-        labels = np.array(handle['vectorset'])
+        labels = np.array(handle['labels_for_128'])
+        data = np.array(handle['matrix_of_128'])
 
         return data, labels
 
 
 def preprocess(data, labels):
     # simply add an additional dimension for the channels for data
-    # swap axis of the label set
     return np.expand_dims(data, axis=3), np.moveaxis(labels, 0, -1)
 
 
-def build_model(input_shape):
+def build_model(input_shape, labels):
     input_img = Input(shape=input_shape)
 
     # first bottleneck unit
@@ -94,29 +110,33 @@ def build_model(input_shape):
     # corner detection
     bn_3 = BatchNormalization()(merged)
     padding = ZeroPadding2D(padding=(0, 3))(bn_3)
-    conv_3 = Conv2D( 32, kernel_size=(21, 7,), padding='valid', activation='tanh')(padding)
-    conv_4 = Conv2D(128, kernel_size=( 1, 3,), padding='same',  activation='tanh')(conv_3)
- 
+    conv_3 = Conv2D(32, kernel_size=(21, 7,), padding='valid', activation='tanh')(padding)
+    conv_4 = Conv2D(128, kernel_size=(1, 3,), padding='same', activation='tanh')(conv_3)
+
     # fully-connected predictor
     flat = Flatten()(conv_4)
-    classify = Dense(512, activation='sigmoid')(flat)
+    classify = Dense(10, activation='sigmoid')(flat)
     dropout = Dropout(0.1)(classify)
 
-    result = Dense(input_shape[1], activation='sigmoid')(dropout)
+    result = Dense(labels.shape[1], activation='sigmoid')(dropout)
 
     model = Model(inputs=input_img, outputs=result)
     model.compile(optimizer=optimizers.Nadam(learning_rate=1e-4), loss='binary_crossentropy', metrics=['accuracy'])
 
     return model
 
+
 def train_network(model, data, labels, model_file, epochs, save_flag):
-    #plot_model(model, to_file='{}.png'.format(model_file), show_shapes=True)
+    # plot_model(model, to_file='{}.png'.format(model_file), show_shapes=True)
 
     if (save_flag):
-        checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True, save_weights_only=False, mode='auto')
-        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9}, callbacks=[checkpoint])
+        checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True,
+                                     save_weights_only=False, mode='auto')
+        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0 / 5.0,
+                             class_weight={0: 0.1, 1: 0.9}, callbacks=[checkpoint])
     else:
-        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9})
+        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0 / 5.0,
+                             class_weight={0: 0.1, 1: 0.9})
 
     if (save_flag):
         with open('{}.history'.format(model_file), 'wb') as handle:
@@ -125,7 +145,7 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
 
 if __name__ == '__main__':
     arguments = parse_cli()
-    data, labels = preprocess(*load_data(arguments.train))
-    model = build_model(input_shape=data.shape[1:])
-    #train_network(model, data, labels, arguments.model, arguments.epochs, arguments.save_flag)
+    data, labels = preprocess(*load_data(arguments.train)) #, arguments.data, arguments.labels
+    model = build_model(data.shape[1:],labels)
+    train_network(model, data, labels, arguments.model, arguments.epochs, arguments.save_flag)
 

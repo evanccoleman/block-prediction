@@ -52,10 +52,10 @@ def generate_multiple_uniform(matrix_size, amount=1000):
     # in order to still have "visible" blocks
 
     # uniform blocks:
-    blocks, block_size = generate_fixed_blocks(matrix_size)
+    blocks = generate_fixed_blocks(matrix_size)
 
-# block_size
-    blocks_array = np.empty((21, amount))
+    block_num = len(blocks)
+    blocks_array = np.empty((block_num, amount))
     array_of_matrices = np.empty((matrix_size, matrix_size, amount))
     for i in range(amount):
         array_of_matrices[:, :, i] = generate_data(matrix_size, blocks, noise=np.random.uniform(0, 0.4),
@@ -66,7 +66,7 @@ def generate_multiple_uniform(matrix_size, amount=1000):
     #blocks_array = np.expand_dims(blocks_array, axis=-1)
 
     # SAVE THE NEW MATRIX TO AN H5 FILE
-    with h5py.File('synthetic_data.h5', 'w') as f:
+    with h5py.File('synthetic_data.h5', 'a') as f:
 
         matrixset_name = 'matrix_of_' + str(matrix_size)
         f.create_dataset(matrixset_name, data=array_of_matrices)
@@ -87,6 +87,7 @@ def generate_block_sizes(matrix_size, block_size_range=(0.05, 0.2)):
     max_block = int(matrix_size * block_size_range[1])
     blocks = []
     total_size = 0
+    block_size = 0
 
     while total_size < matrix_size:
         block_size = np.random.randint(min_block, max_block)
@@ -95,7 +96,7 @@ def generate_block_sizes(matrix_size, block_size_range=(0.05, 0.2)):
         blocks.append(block_size)
         total_size += block_size
 
-    return blocks, block_size # our list of block sizes
+    return blocks # our list of block sizes
 
 def generate_fixed_blocks(matrix_size, block_ratio=0.05):
     block_size = int(matrix_size * block_ratio)
@@ -103,7 +104,7 @@ def generate_fixed_blocks(matrix_size, block_ratio=0.05):
     num_blocks = matrix_size // block_size
     for i in range(num_blocks):
         blocks.append(block_size)
-    return blocks, block_size
+    return blocks
 
 # def save_to_h5(matrix, file_name='synthetic_data.h5', dataset_name):
 #     # SAVE THE NEW MATRIX TO AN H5 FILE
@@ -118,7 +119,7 @@ def generate_fixed_blocks(matrix_size, block_ratio=0.05):
 
 
 # test out matrix
-size = 128
+size = 1000
 #block_sizes = generate_fixed_blocks(size)
 #print(block_sizes)
 
