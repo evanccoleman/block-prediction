@@ -31,7 +31,7 @@ def parse_cli():
         nargs='?',
         type=positive_int,
         action='store',
-        default=2,
+        default=1,
         help='number of training epochs'
     )
     parser.add_argument(
@@ -125,6 +125,37 @@ def build_model(input_shape, labels):
 
     return model
 
+def build_model_lr(input_shape, labels):
+    input_img = Input(shape=input_shape)
+
+    # first bottleneck unit
+    #bn_1 = BatchNormalization()(input_img)
+    #activation_1 = Activation('selu')(input_img)
+    conv_1 = Conv2D(32, kernel_size=(5, 5,), padding='same', kernel_regularizer=l2(0.02))(input_img)
+
+    #bn_2 = BatchNormalization()(conv_1)
+    activation_2 = Activation('selu')(conv_1)
+    conv_2 = Conv2D(128, kernel_size=(3, 3,), padding='same', kernel_regularizer=l2(0.02))(activation_2)
+
+    #merged = add([input_img, conv_2])
+
+    # corner detection
+    #bn_3 = BatchNormalization()(merged)
+    #padding = ZeroPadding2D(padding=(0, 3))(bn_3)
+    #conv_3 = Conv2D(32, kernel_size=(21, 7,), padding='valid', activation='tanh')(conv_2)
+    #conv_4 = Conv2D(128, kernel_size=(1, 3,), padding='same', activation='tanh')(conv_3)
+
+    # fully-connected predictor
+    flat = Flatten()(conv_2)
+    classify = Dense(10, activation='sigmoid')(flat)
+    #dropout = Dropout(0.1)(classify)
+
+    result = Dense(labels.shape[1], activation='sigmoid')(classify)
+
+    model = Model(inputs=input_img, outputs=result)
+    model.compile(optimizer=optimizers.Nadam(learning_rate=1e-4), loss='binary_crossentropy', metrics=['accuracy'])
+
+    return model
 
 def train_network(model, data, labels, model_file, epochs, save_flag):
     # plot_model(model, to_file='{}.png'.format(model_file), show_shapes=True)
@@ -132,11 +163,21 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
     if (save_flag):
         checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True,
                                      save_weights_only=False, mode='auto')
-        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0 / 5.0,
-                             class_weight={0: 0.1, 1: 0.9}, callbacks=[checkpoint])
+        training = model.fit(data,
+                             labels,
+                             epochs=epochs,
+                             #batch_size=8,
+                             validation_split=0.2,
+                             #class_weight={0: 0.1, 1: 0.9},
+                             callbacks=[checkpoint])
     else:
-        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0 / 5.0,
-                             class_weight={0: 0.1, 1: 0.9})
+        training = model.fit(data,
+                             labels,
+                             epochs=epochs,
+                             #batch_size=8,
+                             validation_split=0.2
+                             #class_weight={0: 0.1, 1: 0.9}
+                             )
 
     if (save_flag):
         with open('{}.history'.format(model_file), 'wb') as handle:
@@ -146,6 +187,8 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
 if __name__ == '__main__':
     arguments = parse_cli()
     data, labels = preprocess(*load_data(arguments.train)) #, arguments.data, arguments.labels
-    model = build_model(data.shape[1:],labels)
-    train_network(model, data, labels, arguments.model, arguments.epochs, arguments.save_flag)
+    labelsSimple = labels[:, 0]
+    labelsSimple = np.expand_dims(labelsSimple, axis=1)  # Reshape into (n_samples, 1)
+    model = build_model(data.shape[1:],labelsSimple)
+    train_network(model, data, labelsSimple, arguments.model, arguments.epochs, arguments.save_flag)
 
