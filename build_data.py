@@ -119,7 +119,7 @@ def generate_fixed_blocks(matrix_size, block_ratio=0.05):
 
 
 # test out matrix
-size = 1000
+size = 128
 #block_sizes = generate_fixed_blocks(size)
 #print(block_sizes)
 
