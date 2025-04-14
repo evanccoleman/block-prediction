@@ -4,11 +4,11 @@ import numpy as np
 import h5py
 
 handle = h5py.File('./synthetic_data.h5', 'r+')
-data = np.array(handle['matrix_of_100'])
-labels = np.array(handle['labels_for_100'])
+data = np.array(handle['matrix_of_hard_64'])
+labels = np.array(handle['labels_for_hard_64'])
 
 handle.close()
-matplotlib.pyplot.spy(data[:,:,128])
+matplotlib.pyplot.spy(data[:,:,0])
 matplotlib.pyplot.show()
 block_size = labels[0]
 print(f"Block size is {block_size}")
