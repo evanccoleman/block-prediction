@@ -1,3 +1,5 @@
+import random
+
 import matplotlib.pyplot
 import matplotlib.pyplot as plt
 import numpy as np
@@ -50,38 +52,49 @@ def generate_data(matrix_size, block_sizes, noise=0.2, de_noise=0.4):
 def generate_multiple_uniform(matrix_size, amount=1000):
     # we will go by a general rule that max noise=0.3 and max denoise=0.4
     # in order to still have "visible" blocks
-
-    # uniform blocks:
-    blocks = generate_fixed_blocks(matrix_size)
-
-    block_num = len(blocks)
-    blocks_array = np.empty((block_num, amount))
     array_of_matrices = np.empty((matrix_size, matrix_size, amount))
+    block_size_array = []
     for i in range(amount):
-        array_of_matrices[:, :, i] = generate_data(matrix_size, blocks, noise=np.random.uniform(0, 0.4),
-                                        de_noise=np.random.uniform(0, 0.5))
-        blocks_array[:,i] = blocks
+        # random block ratio
+        block_ratio = np.random.uniform(0.05, 0.1)
+        #print(block_ratio)
+
+        #generate block sizes for current matrix
+        blocks, block_size = generate_fixed_blocks(matrix_size, block_ratio=block_ratio)
+        block_size_array.append(block_size)
+
+        # generate the matrix
+        array_of_matrices[:, :, i] = generate_data(matrix_size, blocks, noise=0.2, de_noise=0.2)
 
     #blocks_array = np.array(blocks)
     #blocks_array = np.expand_dims(blocks_array, axis=-1)
 
-    # SAVE THE NEW MATRIX TO AN H5 FILE
+
+
+        # SAVE THE NEW MATRIX TO AN H5 FILE
     with h5py.File('synthetic_data.h5', 'a') as f:
 
         matrixset_name = 'matrix_of_' + str(matrix_size)
         f.create_dataset(matrixset_name, data=array_of_matrices)
 
+
         labelset_name = 'labels_for_' + str(matrix_size)
-        f.create_dataset(labelset_name, data=blocks_array)
+        f.create_dataset(labelset_name, data=block_size_array)
+
+        data = np.array(f[matrixset_name])
+        labels = np.array(f[labelset_name])
+        #print(data.shape)
+        #print(labels.shape)
+
 
     print("Matrices of size " + str(matrix_size) + " saved to 'synthetic_data.h5'")
-    print("Block sizes of matrices: " + str(matrix_size))
+    #print("Block sizes of matrices: " + str(matrix_size))
     return array_of_matrices
 
 
 # this will generate a list of block sizes
 # gives you control over min and max block sizes
-def generate_block_sizes(matrix_size, block_size_range=(0.05, 0.2)):
+def generate_block_sizes(matrix_size, block_size_range=(0.05, 0.07)):
 
     min_block = int(matrix_size * block_size_range[0])
     max_block = int(matrix_size * block_size_range[1])
@@ -98,13 +111,16 @@ def generate_block_sizes(matrix_size, block_size_range=(0.05, 0.2)):
 
     return blocks # our list of block sizes
 
-def generate_fixed_blocks(matrix_size, block_ratio=0.05):
+def generate_fixed_blocks(matrix_size, block_ratio=0.07):
     block_size = int(matrix_size * block_ratio)
+    #print(f"The uniform block size is {block_size}")
     blocks = []
+    #print(f"The matrix size is {matrix_size}")
     num_blocks = matrix_size // block_size
+    #print(f"The matrix size divided by block size is is {num_blocks}")
     for i in range(num_blocks):
         blocks.append(block_size)
-    return blocks
+    return blocks, block_size
 
 # def save_to_h5(matrix, file_name='synthetic_data.h5', dataset_name):
 #     # SAVE THE NEW MATRIX TO AN H5 FILE
@@ -119,17 +135,58 @@ def generate_fixed_blocks(matrix_size, block_ratio=0.05):
 
 
 # test out matrix
-size = 128
-#block_sizes = generate_fixed_blocks(size)
-#print(block_sizes)
-
-matrices = generate_multiple_uniform(size)
+#size = 50
+#blocks, block_size = generate_fixed_blocks(size)
+#matrices = generate_multiple_uniform(size)
 handle = h5py.File('./synthetic_data.h5', 'r+')
-#data = np.array(handle['matrix_of_600'])
-
+data = np.array(handle['matrix_of_50'])
 
 handle.close()
-#matplotlib.pyplot.spy(data[:,:,100])
+#matplotlib.pyplot.spy(data[:,:,50])
+#matplotlib.pyplot.spy(data[:,:,1])
 #matplotlib.pyplot.show()
 
+##******************************************************************************************##
+##******************************************************************************************##
+##******************************************************************************************##
+##******************************************************************************************##
+## **************** HARD CODED SECTION *****************************************************##
+hard_size=64
+hard_amount=5000
+array_of_matrices = np.empty((hard_size, hard_size, hard_amount))
+block_size_array = []
+hard_list = [2, 4, 8, 16]
 
+for i in range(hard_amount):
+    # list of blocks for current matrix
+    blocks=[]
+
+    # block size for current matrix
+    block_size = random.choice(hard_list)
+
+    # number of blocks
+    num_blocks = hard_size // block_size
+    # add these blocks to list so we can generate matrix
+    for i in range(num_blocks):
+        blocks.append(block_size)
+    # append block size to list of all blocks for all matrices
+    block_size_array.append(block_size)
+
+    # generate the matrix
+    array_of_matrices[:, :, i] = generate_data(hard_size, blocks, noise=0.2, de_noise=0.2)
+
+# SAVE THE NEW MATRIX TO AN H5 FILE
+with h5py.File('synthetic_data.h5', 'w') as f:
+    matrixset_name = 'matrix_of_hard_64'
+    f.create_dataset(matrixset_name, data=array_of_matrices)
+
+    labelset_name = 'labels_for_hard_64'
+    f.create_dataset(labelset_name, data=block_size_array)
+
+    data = np.array(f[matrixset_name])
+    labels = np.array(f[labelset_name])
+    # print(data.shape)
+    # print(labels.shape)
+
+print("Matrices of size " + str(hard_size) + " saved to 'synthetic_data.h5'")
+# print("Block sizes of matrices: " + str(matrix_size))

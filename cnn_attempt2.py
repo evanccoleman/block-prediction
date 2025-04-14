@@ -19,6 +19,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from tensorflow.python.keras.utils import np_utils
 from keras_tuner.tuners import RandomSearch
+from tensorflow.keras.callbacks import EarlyStopping
 
 
 
@@ -114,39 +115,52 @@ def preprocess(data, labels):
 
 def build_model(hp, input_shape):
     input_img = Input(shape=input_shape)
+    x = input_img
 
-    # first bottleneck unit
-    bn_1 = BatchNormalization()(input_img)
-    activation_1 = Activation('selu')(bn_1)
-    conv_1 = Conv2D(16, kernel_size=(5, 5,), padding='same', kernel_regularizer=l2(0.02))(activation_1)
+    # bottleneck blocks
+    num_blocks = hp.Int("num_blocks", min_value=1, max_value=3)
 
-    # Conv2D(32, kernel_size=(5, 5,), padding='same', kernel_regularizer=l2(0.02))(activation_1)
-    bn_2 = BatchNormalization()(conv_1)
-    activation_2 = Activation('selu')(bn_2)
-    conv_2 = Conv2D(64, kernel_size=(4, 4,), padding='same', kernel_regularizer=l2(0.02))(activation_2)
-    #conv_2 = Conv2D(128, kernel_size=(3, 3,), padding='same', kernel_regularizer=l2(0.02))(activation_2)
-    merged = add([input_img, conv_2])
+    for i in range(num_blocks):
+        filters_1 = hp.Choice(f"filters1_block{i}", [16, 32, 64])
+        filters_2 = hp.Choice(f"filters2_block{i}", [32, 64, 128])
+        kernel_size_1 = hp.Choice(f"kernel1_block{i}", [3, 5])
+        kernel_size_2 = hp.Choice(f"kernel2_block{i}", [3, 4])
+        l2_reg = hp.Float(f"l2_block{i}", 0.001, 0.03, step=0.005)
 
-    # corner detection
-    bn_3 = BatchNormalization()(merged)
-    padding = ZeroPadding2D(padding=(0, 3))(bn_3)
-    conv_3 = Conv2D(16, kernel_size=(21, 7,), padding='valid', activation='tanh')(padding)
-    # kernel size 21,7
-    conv_4 = Conv2D(64, kernel_size=(1, 3,), padding='same', activation='tanh')(conv_3)
-    # kernel size 1,3
+        bn1 = BatchNormalization()(x)
+        act1 = Activation('selu')(bn1)
+        conv1 = Conv2D(filters_1, kernel_size=(kernel_size_1, kernel_size_1),
+                       padding='same', kernel_regularizer=l2(l2_reg))(act1)
 
-    # fully-connected predictor
-    flat = Flatten()(conv_4)
-    classify = Dense(512, activation='sigmoid')(flat)
-    dropout = Dropout(0.1)(classify)
+        bn2 = BatchNormalization()(conv1)
+        act2 = Activation('selu')(bn2)
+        conv2 = Conv2D(filters_2, kernel_size=(kernel_size_2, kernel_size_2),
+                       padding='same', kernel_regularizer=l2(l2_reg))(act2)
 
-    # had to change this. We only want one output, the predicted block size
-    result = Dense(input_shape[1], activation='softmax')(dropout)
+        x = add([x, conv2])  # skip connection
 
-    model = Model(inputs=input_img, outputs=result)
-    model.compile(optimizer=optimizers.Nadam(learning_rate=1e-4), loss='categorical_crossentropy', metrics=['accuracy'])
+    # corner detection block
+    x = BatchNormalization()(x)
+    x = ZeroPadding2D(padding=(0, 3))(x)
+    x = Conv2D(hp.Choice("corner_filters1", [16, 32]), (21, 7), activation='tanh')(x)
+    x = Conv2D(hp.Choice("corner_filters2", [32, 64]), (1, 3), padding='same', activation='tanh')(x)
 
+    # fully connected head
+    x = Flatten()(x)
+    x = Dense(hp.Choice("dense_units", [128, 256, 512]), activation='sigmoid')(x)
+    x = Dropout(hp.Float("dropout", 0.1, 0.5, step=0.1))(x)
 
+    output = Dense(4, activation='softmax')(x)
+
+    model = Model(inputs=input_img, outputs=output)
+
+    model.compile(
+        optimizer=optimizers.Nadam(
+            learning_rate=hp.Float("learning_rate", 1e-5, 1e-3, sampling="log")
+        ),
+        loss="categorical_crossentropy",
+        metrics=["accuracy"]
+    )
     return model
 
 def train_network(model, data, labels, model_file, epochs, save_flag):
@@ -194,25 +208,28 @@ if __name__ == '__main__':
     y_train = tf.keras.utils.to_categorical(y_train, num_classes=4)
     y_test = tf.keras.utils.to_categorical(y_test, num_classes=4)
 
-    # input_shape = (data.shape[1], data.shape[2], 1)
-    #
-    # tuner = RandomSearch(
-    #     lambda hp: build_model(hp, input_shape),
-    #     objective='val_accuracy',
-    #     max_trials=10,
-    #     executions_per_trial=1,
-    #     directory='tuner_logs',
-    #     project_name='block_size_cnn'
-    # )
-    # tuner.search(X_train, y_train, epochs=5, validation_split=0.2)
-    # best_model = tuner.get_best_models(num_models=1)[0]
-    # best_model.summary()
-    # build and train model
-    model = build_model((data.shape[1], data.shape[2], 1))
-    model.summary()
+    input_shape = (data.shape[1], data.shape[2], 1)
 
-    train_network(model, X_train, y_train, args.model, epochs=8, save_flag=True)
-    evaluate_model(model, X_test, y_test)
+    tuner = RandomSearch(
+        lambda hp: build_model(hp, input_shape),
+        objective='val_accuracy',
+        max_trials=10,
+        executions_per_trial=1,
+        directory='tuner_logs',
+        project_name='block_size_cnn_v2'
+    )
+    #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
+    best_hps = tuner.get_best_hyperparameters(1)[0]
+    print(best_hps.values)
+    best_model = build_model(best_hps, input_shape)
+    best_model.summary()
+    # build and train model
+    #model = build_model((data.shape[1], data.shape[2], 1))
+    #model.summary()
+
+    train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
+    evaluate_model(best_model, X_test, y_test)
 
 
 # later need to convert back to block sizes
