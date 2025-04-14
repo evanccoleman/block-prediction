@@ -19,17 +19,17 @@ with h5py.File('./synthetic_data.h5', 'r') as handle:
     #value = labels[0, 0]
     #dim = labels.shape[0]
     #labels = np.full((1, dim), value, dtype=int)
-    y = handle['labels_for_200'][:]
-    print(y.shape)
+    y = handle['labels_for_100'][:]
+    #print(y.shape)
     y = y[0, :].reshape(1, -1)
-    print(y.shape)
-    x = handle['matrix_of_200'][:]
-    print(x.shape)
+    #print(y.shape)
+    x = handle['matrix_of_100'][:]
+    #print(x.shape)
 x = x.reshape(1000, -1)
 y = y.reshape(1000, 1) # hiii
 
-print(y.shape)
-print(x.shape)
+#print(y.shape)
+#print(x.shape)
 
 X_complex, y_complex = x, y
 y_complex = np.ravel(y_complex)
@@ -115,7 +115,7 @@ tf_seq = keras.Sequential([
     layers.Dense(1, activation='linear')  # Output layer (for classification)
 ])
 
-tf_seq.compile(optimizer='adam', loss='mse', metrics=['mae', 'mse'])
+tf_seq.compile(optimizer='adam', loss='mse', metrics=['mae', 'mse','accuracy'])
 
 X_complex_seq, y_complex_seq = x, y
 X_train_seq, X_test_seq, y_train_seq, y_test_seq = train_test_split(
@@ -125,11 +125,12 @@ X_train_seq, X_test_seq, y_train_seq, y_test_seq = train_test_split(
 history = tf_seq.fit(X_train_seq, y_train_seq, epochs=10, batch_size=32)
 predictions = tf_seq.predict(X_test_seq)
 
-print(predictions)
+#print(predictions)
 
-test_loss, test_mae, test_mse = tf_seq.evaluate(X_test_seq, y_test_seq)
+test_loss, test_mae, test_mse, test_accuracy = tf_seq.evaluate(X_test_seq, y_test_seq)
 print(f"Test MAE FOR SEQ: {test_mae}")
 print(f"Test MSE SEQ: {test_mse}")
+print(f"Test accuracy SEQ: {test_accuracy}")
 
 
 print("\n")

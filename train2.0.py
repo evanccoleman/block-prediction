@@ -65,7 +65,7 @@ def parse_cli():
         metavar='DATA',
         type=str,
         dest='data',
-        default='matrix_of_128',
+        default='matrix_of_50',
         help='--'
     )
     parser.add_argument(
@@ -74,7 +74,7 @@ def parse_cli():
         metavar='LABEL',
         type=str,
         dest='labels',
-        default='labels_for_128',
+        default='labels_for_50',
         help='--'
     )
     return parser.parse_args()
@@ -82,8 +82,8 @@ def parse_cli():
 
 def load_data(path):
     with h5py.File(path, 'r') as handle:
-        labels = np.array(handle['labels_for_128'])
-        data = np.array(handle['matrix_of_128'])
+        labels = np.array(handle['labels_for_50'])
+        data = np.array(handle['matrix_of_50'])
 
         return data, labels
 
@@ -166,17 +166,17 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
         training = model.fit(data,
                              labels,
                              epochs=epochs,
-                             #batch_size=8,
+                             batch_size=8,
                              validation_split=0.2,
-                             #class_weight={0: 0.1, 1: 0.9},
+                             class_weight={0: 0.1, 1: 0.9},
                              callbacks=[checkpoint])
     else:
         training = model.fit(data,
                              labels,
                              epochs=epochs,
-                             #batch_size=8,
-                             validation_split=0.2
-                             #class_weight={0: 0.1, 1: 0.9}
+                             batch_size=8,
+                             validation_split=0.2,
+                             class_weight={0: 0.1, 1: 0.9}
                              )
 
     if (save_flag):
@@ -186,9 +186,15 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
 
 if __name__ == '__main__':
     arguments = parse_cli()
+    print("complete (1)")
     data, labels = preprocess(*load_data(arguments.train)) #, arguments.data, arguments.labels
+    print("complete (2)")
     labelsSimple = labels[:, 0]
+    print("complete (3)")
     labelsSimple = np.expand_dims(labelsSimple, axis=1)  # Reshape into (n_samples, 1)
+    print("complete (4)")
     model = build_model(data.shape[1:],labelsSimple)
+    print("complete (5)")
     train_network(model, data, labelsSimple, arguments.model, arguments.epochs, arguments.save_flag)
+    print("complete (6)")
 
