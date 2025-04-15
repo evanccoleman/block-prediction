@@ -167,7 +167,7 @@ for i in range(hard_amount):
     # number of blocks
     num_blocks = hard_size // block_size
     # add these blocks to list so we can generate matrix
-    for j in range(num_blocks):
+    for j in range(num_blocks): # NOTE: Error was here
         blocks.append(block_size)
     # append block size to list of all blocks for all matrices
     block_size_array.append(block_size)
