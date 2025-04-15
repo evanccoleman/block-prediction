@@ -138,10 +138,10 @@ def generate_fixed_blocks(matrix_size, block_ratio=0.07):
 #size = 50
 #blocks, block_size = generate_fixed_blocks(size)
 #matrices = generate_multiple_uniform(size)
-handle = h5py.File('./synthetic_data.h5', 'r+')
-data = np.array(handle['matrix_of_50'])
+#handle = h5py.File('./synthetic_data.h5', 'r+')
+#data = np.array(handle['matrix_of_50'])
 
-handle.close()
+#handle.close()
 #matplotlib.pyplot.spy(data[:,:,50])
 #matplotlib.pyplot.spy(data[:,:,1])
 #matplotlib.pyplot.show()
@@ -167,13 +167,15 @@ for i in range(hard_amount):
     # number of blocks
     num_blocks = hard_size // block_size
     # add these blocks to list so we can generate matrix
-    for i in range(num_blocks):
+    for j in range(num_blocks):
         blocks.append(block_size)
     # append block size to list of all blocks for all matrices
     block_size_array.append(block_size)
 
     # generate the matrix
-    array_of_matrices[:, :, i] = generate_data(hard_size, blocks, noise=0.2, de_noise=0.2)
+    array_of_matrices[:, :, i] = generate_data(hard_size, blocks, noise=0.01, de_noise=0.01)
+    if (i == 0):
+        print(array_of_matrices[:,:,i])
 
 # SAVE THE NEW MATRIX TO AN H5 FILE
 with h5py.File('synthetic_data.h5', 'w') as f:
