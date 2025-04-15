@@ -168,9 +168,9 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
 
     if (save_flag):
         checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True, save_weights_only=False, mode='auto')
-        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9}, callbacks=[checkpoint])
+        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0, callbacks=[checkpoint])
     else:
-        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9})
+        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0)
 
     if (save_flag):
         with open('{}.history'.format(model_file), 'wb') as handle:
