@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 from PIL import Image
+import tensorflow as tf
+import io
 
 # function takes in matrix size, range of block sizes, noise, and de-noise
 def generate_data(matrix_size, block_sizes, noise=0.2, de_noise=0.4):
@@ -183,18 +185,38 @@ pngs = []
 for i in range(data.shape[2]):
     matrix = data[:,:,i]
     # 255 is white, 0 is black.
-    # when we use matplotlib to show matrices, we view the 1s as black
-    # so we need to invert matrix
+    # when we use matplotlib to show matrices, we view the 1s as black so we need to invert matrix
     matrix = (1- matrix) * 255
+    matrix = matrix.astype(np.uint8)
     img = Image.fromarray(matrix)
     pngs.append(img)
+print(pngs[0].size)
 pngs[0].show()
+# compare to matplotlib image
 matplotlib.pyplot.spy(data[:,:,0])
-
 matplotlib.pyplot.show()
 
+# tfrecord seems to be popular storage option
+# need to convert image into tf.train.Example in order to write as tfrecord
+# this conversion is mostly copied from a reply I saw on stackoverflow
+# combined functions since I know what I need to use
+def image_example(image, label):
+    feature = {
+        'image': tf.train.Feature(bytes_list=tf.train.BytesList(value=[image])),
+        'label': tf.train.Feature(int64_list=tf.train.Int64List(value=[label]))
+    }
+    return tf.train.Example(features=tf.train.Features(feature=feature))
 
-
+def write_tfrecord(images, labels, filename):
+    with tf.io.TFRecordWriter(filename) as writer:
+        for image, label in zip(images, labels):
+            # images aren't actually stored anywhere so I need to temporarily store in buffer
+            buf = io.BytesIO()
+            image.save(buf, format='PNG')
+            png_bytes = buf.getvalue()
+            example = image_example(png_bytes, label)
+            writer.write(example.SerializeToString())
+write_tfrecord(pngs, block_size_array,'test.tfrecord')
 # # SAVE THE NEW MATRIX TO AN H5 FILE
 # with h5py.File('synthetic_data.h5', 'w') as f:
 #     matrixset_name = 'matrix_of_hard_64'
