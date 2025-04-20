@@ -4,6 +4,7 @@ import matplotlib.pyplot
 import matplotlib.pyplot as plt
 import numpy as np
 import h5py
+from PIL import Image
 
 # function takes in matrix size, range of block sizes, noise, and de-noise
 def generate_data(matrix_size, block_sizes, noise=0.2, de_noise=0.4):
@@ -176,19 +177,36 @@ for i in range(hard_amount):
     array_of_matrices[:, :, i] = generate_data(hard_size, blocks, noise=0.01, de_noise=0.01)
     if (i == 0):
         print(array_of_matrices[:,:,i])
+# CONVERT TO PNG
+data = np.array(array_of_matrices)
+pngs = []
+for i in range(data.shape[2]):
+    matrix = data[:,:,i]
+    # 255 is white, 0 is black.
+    # when we use matplotlib to show matrices, we view the 1s as black
+    # so we need to invert matrix
+    matrix = (1- matrix) * 255
+    img = Image.fromarray(matrix)
+    pngs.append(img)
+pngs[0].show()
+matplotlib.pyplot.spy(data[:,:,0])
 
-# SAVE THE NEW MATRIX TO AN H5 FILE
-with h5py.File('synthetic_data.h5', 'w') as f:
-    matrixset_name = 'matrix_of_hard_64'
-    f.create_dataset(matrixset_name, data=array_of_matrices)
+matplotlib.pyplot.show()
 
-    labelset_name = 'labels_for_hard_64'
-    f.create_dataset(labelset_name, data=block_size_array)
 
-    data = np.array(f[matrixset_name])
-    labels = np.array(f[labelset_name])
-    # print(data.shape)
-    # print(labels.shape)
 
-print("Matrices of size " + str(hard_size) + " saved to 'synthetic_data.h5'")
-# print("Block sizes of matrices: " + str(matrix_size))
+# # SAVE THE NEW MATRIX TO AN H5 FILE
+# with h5py.File('synthetic_data.h5', 'w') as f:
+#     matrixset_name = 'matrix_of_hard_64'
+#     f.create_dataset(matrixset_name, data=array_of_matrices)
+#
+#     labelset_name = 'labels_for_hard_64'
+#     f.create_dataset(labelset_name, data=block_size_array)
+#
+#     data = np.array(f[matrixset_name])
+#     labels = np.array(f[labelset_name])
+#     # print(data.shape)
+#     # print(labels.shape)
+#
+# print("Matrices of size " + str(hard_size) + " saved to 'synthetic_data.h5'")
+# # print("Block sizes of matrices: " + str(matrix_size))
