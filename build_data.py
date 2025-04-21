@@ -7,7 +7,7 @@ import h5py
 from PIL import Image
 import tensorflow as tf
 import io
-
+import os
 # function takes in matrix size, range of block sizes, noise, and de-noise
 def generate_data(matrix_size, block_sizes, noise=0.2, de_noise=0.4):
 
@@ -179,44 +179,44 @@ for i in range(hard_amount):
     array_of_matrices[:, :, i] = generate_data(hard_size, blocks, noise=0.01, de_noise=0.01)
     if (i == 0):
         print(array_of_matrices[:,:,i])
+
 # CONVERT TO PNG
-data = np.array(array_of_matrices)
-pngs = []
-for i in range(data.shape[2]):
-    matrix = data[:,:,i]
+def matrix_to_png(matrix):
     # 255 is white, 0 is black.
     # when we use matplotlib to show matrices, we view the 1s as black so we need to invert matrix
     matrix = (1- matrix) * 255
     matrix = matrix.astype(np.uint8)
     img = Image.fromarray(matrix)
-    pngs.append(img)
-print(pngs[0].size)
-pngs[0].show()
+    return img
+#save
+def store_pngs(data, labels, base_dir='png_dataset'):
+    os.makedirs(base_dir, exist_ok=True)
+    matrix_size = data[:, :, 0].shape[0]
+    size_folder = os.path.join(base_dir, f'size_{matrix_size}')
+    os.makedirs(size_folder, exist_ok=True)
+    for label in labels:
+        label_folder = os.path.join(size_folder, f'label_{label}')
+        os.makedirs(label_folder, exist_ok=True)
+    for i in range(data.shape[2]):
+        matrix = data[:,:,i]
+        img = matrix_to_png(matrix)
+        file_path = os.path.join(size_folder, f'label_{labels[i]}',f'matrix_{i}.png')
+        img.save(file_path)
+data = np.array(array_of_matrices)
+store_pngs(data, block_size_array)
+
+#print(pngs[0].size)
+#pngs[0].show()
 # compare to matplotlib image
 matplotlib.pyplot.spy(data[:,:,0])
 matplotlib.pyplot.show()
 
-# tfrecord seems to be popular storage option
-# need to convert image into tf.train.Example in order to write as tfrecord
-# this conversion is mostly copied from a reply I saw on stackoverflow
-# combined functions since I know what I need to use
-def image_example(image, label):
-    feature = {
-        'image': tf.train.Feature(bytes_list=tf.train.BytesList(value=[image])),
-        'label': tf.train.Feature(int64_list=tf.train.Int64List(value=[label]))
-    }
-    return tf.train.Example(features=tf.train.Features(feature=feature))
 
-def write_tfrecord(images, labels, filename):
-    with tf.io.TFRecordWriter(filename) as writer:
-        for image, label in zip(images, labels):
-            # images aren't actually stored anywhere so I need to temporarily store in buffer
-            buf = io.BytesIO()
-            image.save(buf, format='PNG')
-            png_bytes = buf.getvalue()
-            example = image_example(png_bytes, label)
-            writer.write(example.SerializeToString())
-write_tfrecord(pngs, block_size_array,'test.tfrecord')
+
+
+
+
+
 # # SAVE THE NEW MATRIX TO AN H5 FILE
 # with h5py.File('synthetic_data.h5', 'w') as f:
 #     matrixset_name = 'matrix_of_hard_64'

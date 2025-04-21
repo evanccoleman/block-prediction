@@ -17,9 +17,10 @@ from tensorflow.keras.utils import plot_model
 import numpy as np
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+from tensorflow.python.keras.callbacks import EarlyStopping
 from tensorflow.python.keras.utils import np_utils
 from keras_tuner.tuners import RandomSearch
-
+from tensorflow.keras.preprocessing import image
 
 
 
@@ -49,7 +50,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./synthetic_data.h5',  # './artificial.h5',
+        default='png_dataset/size_64',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -57,7 +58,7 @@ def parse_cli():
         metavar='MODEL',
         type=str,
         dest='model',
-        default='./latest_model.keras',
+        default='./latest_model_pngs.keras',
         help='path where to store the model'
     )
     parser.add_argument(
@@ -69,47 +70,22 @@ def parse_cli():
         default=True,
         help='Flag to determine whether to enable checkpointing and writing to disk'
     )
-    parser.add_argument(
-        '-d', '--data',
-
-        metavar='DATA',
-        type=str,
-        dest='data',
-        default='matrix_of_hard_64',
-        help='--'
-    )
-    parser.add_argument(
-        '-l', '--labels',
-
-        metavar='LABEL',
-        type=str,
-        dest='labels',
-        default='labels_for_hard_64',
-        help='--'
-    )
     return parser.parse_args()
 
-def load_data(path, data_name, label_name):
-    # Load Data
-    with h5py.File(path, 'r') as handle:
-        data = np.array(handle[data_name])
-        labels = np.array(handle[label_name])
-        print(data.shape)
-        print(labels.shape)
-        return data, labels
-
-def preprocess(data, labels):
-    # Expand dimensions of data to include channel
-    # (num_samples, height, width, 1)
-    data_expanded = np.expand_dims(data.T, axis=-1)
-
-    # Move axis for labels (if needed)
-    # Should aready be fine (1000,) so leaving this for now
-    labels_moved = np.moveaxis(labels, 0, -1)  # Change the shape of labels if required
-    print(f'Preprocessing data shape: {data_expanded.shape}')
-    print(f'Preprocessing labels shape: {labels_moved.shape}')
-    return data_expanded, labels_moved
-
+def load_data(path, target_size=(64,64)):
+    data = []
+    labels = []
+    for label_folder in os.listdir(path):
+        label = int(label_folder.split('_')[1])
+        for matrix in os.listdir(os.path.join(path, label_folder)):
+            if matrix.endswith(".png"):
+                img = image.load_img(os.path.join(path, label_folder, matrix), color_mode='grayscale', target_size=target_size)
+                img_array = image.img_to_array(img) / 255
+                data.append(img_array)
+                labels.append(label)
+    data = np.array(data)
+    labels = np.array(labels)
+    return data, labels
 
 def build_model(hp, input_shape):
     input_img = Input(shape=input_shape)
@@ -182,33 +158,27 @@ def evaluate_model(model, X_test, y_test):
 
 if __name__ == '__main__':
     args = parse_cli()
-    # load and preprocess data
-    data, labels = preprocess(*load_data(args.train, args.data, args.labels))
+    # load data
+    data, labels = load_data(args.train)
     print(f"Data Shape:{data.shape}")  # Shape of the data
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
-
-
     # label mapping
     block_sizes = [2, 4, 8, 16]
     label_to_index = {2: 0, 4: 1, 8: 2, 16: 3}
-    print(f"Labels to index: {label_to_index}")
-
-    #convert labels to class indices
-    # for future when not hard coded:
-    #{v: i for i, v in enumerate(block_sizes)}
+    # convert labels to class indices
     labels = np.array([label_to_index[val] for val in labels])
-    print(f"Updated Labels: {labels}")
 
-    # split into train/test
+    #split into train/test
     X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 
     # one-hot encode labels
     y_train = tf.keras.utils.to_categorical(y_train, num_classes=4)
     y_test = tf.keras.utils.to_categorical(y_test, num_classes=4)
 
+    # input shape
     input_shape = (data.shape[1], data.shape[2], 1)
     print(f"Input Shape: {input_shape}")
-
+    # keras tuner
     tuner = RandomSearch(
         lambda hp: build_model(hp, input_shape),
         objective='val_accuracy',
@@ -217,40 +187,17 @@ if __name__ == '__main__':
         directory='tuner_logs',
         project_name='block_size_cnn_v2'
     )
+
+    # find best model/hps
     #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
     best_hps = tuner.get_best_hyperparameters(1)[0]
     print(f"Best hps:{best_hps.values}")
+
     best_model = build_model(best_hps, input_shape)
     best_model.summary()
-    # build and train model
-    #model = build_model((data.shape[1], data.shape[2], 1))
-    #model.summary()
 
-    #train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
-    #evaluate_model(best_model, X_test, y_test)
-
-    model_file = args.model
-    with open('{}.history'.format(model_file), 'rb') as handle:
-        history = pickle.load(handle)
-
-    # Plot training & validation accuracy values
-    plt.plot(history['accuracy'])
-    plt.plot(history['val_accuracy'])
-    plt.title('Model accuracy')
-    plt.ylabel('Accuracy')
-    plt.xlabel('Epoch')
-    plt.legend(['Train', 'Validation'], loc='upper left')
-    plt.show()
-
-    # Plot training & validation loss values
-    plt.plot(history['loss'])
-    plt.plot(history['val_loss'])
-    plt.title('Model loss')
-    plt.ylabel('Loss')
-    plt.xlabel('Epoch')
-    plt.legend(['Train', 'Validation'], loc='upper left')
-    plt.show()
-# later need to convert back to block sizes
-# pred_classes = model.predict(X_test).argmax(axis=1)
-# pred_block_sizes = [block_sizes[i] for i in pred_classes]
+    # train
+    train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
+    # evaluate
+    evaluate_model(best_model, X_test, y_test)
