@@ -164,6 +164,7 @@ if __name__ == '__main__':
     print(f"Data Shape:{data.shape}")  # Shape of the data
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
     # label mapping
+    # add code here to pull sizes from directory
     block_sizes = [10, 25, 50]
     label_to_index = {10: 0, 25: 1, 50: 2}
     # convert labels to class indices
@@ -173,6 +174,7 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 
     # one-hot encode labels
+    # later, add variable that holds # of classes based on labels in folder
     y_train = tf.keras.utils.to_categorical(y_train, num_classes=3)
     y_test = tf.keras.utils.to_categorical(y_test, num_classes=3)
 
@@ -199,6 +201,6 @@ if __name__ == '__main__':
     best_model.summary()
 
     # train
-    train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
+    train_network(best_model, X_train, y_train, args.model, epochs=1, save_flag=True)
     # evaluate
     evaluate_model(best_model, X_test, y_test)
