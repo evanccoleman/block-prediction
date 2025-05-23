@@ -50,7 +50,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='png_dataset/size_64',  # './artificial.h5',
+        default='png_dataset2/size_250',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -72,7 +72,7 @@ def parse_cli():
     )
     return parser.parse_args()
 
-def load_data(path, target_size=(64,64)):
+def load_data(path, target_size=(250,250)):
     data = []
     labels = []
     for label_folder in os.listdir(path):
@@ -124,7 +124,8 @@ def build_model(hp, input_shape):
     x = Dense(hp.Choice("dense_units", [128, 256, 512]), activation='sigmoid')(x)
     x = Dropout(hp.Float("dropout", 0.1, 0.5, step=0.1))(x)
 
-    output = Dense(4, activation='softmax')(x)
+#### change the number before activation depending on # of classes  A
+    output = Dense(3, activation='softmax')(x)
 
     model = Model(inputs=input_img, outputs=output)
 
@@ -163,8 +164,8 @@ if __name__ == '__main__':
     print(f"Data Shape:{data.shape}")  # Shape of the data
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
     # label mapping
-    block_sizes = [2, 4, 8, 16]
-    label_to_index = {2: 0, 4: 1, 8: 2, 16: 3}
+    block_sizes = [10, 25, 50]
+    label_to_index = {10: 0, 25: 1, 50: 2}
     # convert labels to class indices
     labels = np.array([label_to_index[val] for val in labels])
 
@@ -172,8 +173,8 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 
     # one-hot encode labels
-    y_train = tf.keras.utils.to_categorical(y_train, num_classes=4)
-    y_test = tf.keras.utils.to_categorical(y_test, num_classes=4)
+    y_train = tf.keras.utils.to_categorical(y_train, num_classes=3)
+    y_test = tf.keras.utils.to_categorical(y_test, num_classes=3)
 
     # input shape
     input_shape = (data.shape[1], data.shape[2], 1)

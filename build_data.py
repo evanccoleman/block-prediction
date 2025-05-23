@@ -8,6 +8,7 @@ from PIL import Image
 import tensorflow as tf
 import io
 import os
+import math
 
 '''
 Function to generate matrices.
@@ -171,7 +172,7 @@ Parameters:
     - height: The height of the pngs. By default, pass the matrix size.
     - base_dir: Where to store the pngs.
 '''
-def store_pngs(data, labels, width, height, base_dir='png_dataset'):
+def store_pngs(data, labels, width, height, base_dir='png_dataset2'):
     os.makedirs(base_dir, exist_ok=True)
     matrix_size = data[:, :, 0].shape[0]
     size_folder = os.path.join(base_dir, f'size_{matrix_size}')
@@ -188,7 +189,19 @@ def store_pngs(data, labels, width, height, base_dir='png_dataset'):
         img.save(file_path)
 
 def generate_acceptable_blocks(matrix_size):
-    return
+
+    block_list = []
+
+    # all divisors of matrix size
+    divisors = [d for d in range(1, matrix_size + 1) if matrix_size % d == 0]
+
+    # taking all divisors greater than 2% of matrix size but less than 30%
+    for divisor in divisors:
+        if (divisor) < (matrix_size * .30) and (divisor) > (matrix_size * .02):
+            block_list.append(divisor)
+
+
+    return block_list
 '''
 This function will generate varying matrix sizes
 
@@ -212,12 +225,61 @@ This will call a function that will return a list of acceptable block sizes base
 5. Since we are resizing the PNG, I will change the store_pngs function by adding a parameter for width and height
     - If you do not wish to resize the image, simply pass the matrix size for width and height
 '''
-def generate_varying_matrices(matrix_size, amount=1000, size_range=(100,500)):
+def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100,501)):
+    used_sizes = []
+    # we want size_amount of matrix sizes
+    for i in range(size_amount):
+        # pick the current size randomly, but I need it to be divisible by 10 for ease
+        this_size = random.choice(range(size_range[0], size_range[1], 10))
+        while this_size in used_sizes:
+            this_size = random.choice(size_range)
+        used_sizes.append(this_size)
+        print(f"Current size is: {this_size}")
+
+        # list of blocks for all matrices of specified size
+        block_size_array = []
+
+        # variable to hold our matrices
+        array_of_matrices = np.empty((this_size, this_size, sample_amount))
+
+        # generate our list of acceptable blocks for current size
+        acceptable_blocks = generate_acceptable_blocks(this_size)
+
+        # we want to generate sample_amount of matrices for each size
+        for j in range(sample_amount):
+            # list of blocks for our current matrix
+            blocks = []
+
+            # randomly pick a size from our list of acceptable blocks
+            block_size = random.choice(acceptable_blocks)
+
+            # the number of blocks
+            num_blocks = this_size // block_size
+
+            # add these blocks to list so we can generate matrix
+            for k in range(num_blocks):
+                blocks.append(block_size)
+
+            # append block size to list of all blocks for all matrices of this size
+            block_size_array.append(block_size)
+            # generate the matrix
+            array_of_matrices[:, :, j] = generate_data(this_size, blocks, noise=0.01, de_noise=0.01)
+            if (j == 0):
+                print(array_of_matrices[:,:,j])
+
+        data = np.array(array_of_matrices)
+        store_pngs(data, block_size_array, this_size, this_size)
+
+        #print(pngs[0].size)
+        #pngs[0].show()
+        # compare to matplotlib image
+        matplotlib.pyplot.spy(data[:,:,0])
+        matplotlib.pyplot.show()
     return
 
+#print(f"Acceptable block sizes for matrix of size 470: {generate_acceptable_blocks(470)}")
 
-
-
+generate_varying_matrices(5, sample_amount=1000, size_range=(100,500))
 
 
 
@@ -230,40 +292,40 @@ def generate_varying_matrices(matrix_size, amount=1000, size_range=(100,500)):
 # resized_image = image.resize((new_width, new_height))
 
 #***************************************************** HARD CODED SECTION *****************************************************#
-hard_size=64
-hard_amount=5000
-array_of_matrices = np.empty((hard_size, hard_size, hard_amount))
-block_size_array = []
-hard_list = [2, 4, 8, 16]
-
-for i in range(hard_amount):
-    # list of blocks for current matrix
-    blocks=[]
-
-    # block size for current matrix
-    block_size = random.choice(hard_list)
-
-    # number of blocks
-    num_blocks = hard_size // block_size
-    # add these blocks to list so we can generate matrix
-    for j in range(num_blocks): # NOTE: Error was here
-        blocks.append(block_size)
-    # append block size to list of all blocks for all matrices
-    block_size_array.append(block_size)
-
-    # generate the matrix
-    array_of_matrices[:, :, i] = generate_data(hard_size, blocks, noise=0.01, de_noise=0.01)
-    if (i == 0):
-        print(array_of_matrices[:,:,i])
-
-
-
-data = np.array(array_of_matrices)
-store_pngs(data, block_size_array)
-
-#print(pngs[0].size)
-#pngs[0].show()
-# compare to matplotlib image
-matplotlib.pyplot.spy(data[:,:,0])
-matplotlib.pyplot.show()
+# hard_size=64
+# hard_amount=5000
+# array_of_matrices = np.empty((hard_size, hard_size, hard_amount))
+# block_size_array = []
+# hard_list = [2, 4, 8, 16]
+#
+# for i in range(hard_amount):
+#     # list of blocks for current matrix
+#     blocks=[]
+#
+#     # block size for current matrix
+#     block_size = random.choice(hard_list)
+#
+#     # number of blocks
+#     num_blocks = hard_size // block_size
+#     # add these blocks to list so we can generate matrix
+#     for j in range(num_blocks): # NOTE: Error was here
+#         blocks.append(block_size)
+#     # append block size to list of all blocks for all matrices
+#     block_size_array.append(block_size)
+#
+#     # generate the matrix
+#     array_of_matrices[:, :, i] = generate_data(hard_size, blocks, noise=0.01, de_noise=0.01)
+#     if (i == 0):
+#         print(array_of_matrices[:,:,i])
+#
+#
+#
+# data = np.array(array_of_matrices)
+# store_pngs(data, block_size_array)
+#
+# #print(pngs[0].size)
+# #pngs[0].show()
+# # compare to matplotlib image
+# matplotlib.pyplot.spy(data[:,:,0])
+# matplotlib.pyplot.show()
 
