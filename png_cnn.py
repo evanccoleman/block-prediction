@@ -1,9 +1,10 @@
 import argparse
 from email.policy import default
 import pickle
-import h5py
+#import h5py
 import os
 import tensorflow as tf
+import sklearn
 from sklearn.preprocessing import LabelEncoder
 #import keras_tuner
 from tensorflow.keras import optimizers
@@ -50,7 +51,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='png_dataset2/size_250',  # './artificial.h5',
+        default='png_dataset2/size_170',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -58,7 +59,7 @@ def parse_cli():
         metavar='MODEL',
         type=str,
         dest='model',
-        default='./latest_model_pngs.keras',
+        default='./latest_model_pngs.h5',
         help='path where to store the model'
     )
     parser.add_argument(
@@ -72,7 +73,7 @@ def parse_cli():
     )
     return parser.parse_args()
 
-def load_data(path, target_size=(250,250)):
+def load_data(path, target_size=(170,170)):
     data = []
     labels = []
     for label_folder in os.listdir(path):
@@ -125,7 +126,7 @@ def build_model(hp, input_shape):
     x = Dropout(hp.Float("dropout", 0.1, 0.5, step=0.1))(x)
 
 #### change the number before activation depending on # of classes  A
-    output = Dense(3, activation='softmax')(x)
+    output = Dense(4, activation='softmax')(x)
 
     model = Model(inputs=input_img, outputs=output)
 
@@ -165,8 +166,8 @@ if __name__ == '__main__':
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
     # label mapping
     # add code here to pull sizes from directory
-    block_sizes = [10, 25, 50]
-    label_to_index = {10: 0, 25: 1, 50: 2}
+    block_sizes = [10, 17, 34, 5]
+    label_to_index = {10: 0, 17: 1, 34: 2, 5: 3}
     # convert labels to class indices
     labels = np.array([label_to_index[val] for val in labels])
 
@@ -175,8 +176,8 @@ if __name__ == '__main__':
 
     # one-hot encode labels
     # later, add variable that holds # of classes based on labels in folder
-    y_train = tf.keras.utils.to_categorical(y_train, num_classes=3)
-    y_test = tf.keras.utils.to_categorical(y_test, num_classes=3)
+    y_train = tf.keras.utils.to_categorical(y_train, num_classes=4)
+    y_test = tf.keras.utils.to_categorical(y_test, num_classes=4)
 
     # input shape
     input_shape = (data.shape[1], data.shape[2], 1)
@@ -192,8 +193,8 @@ if __name__ == '__main__':
     )
 
     # find best model/hps
-    #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-    #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
+    early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
     best_hps = tuner.get_best_hyperparameters(1)[0]
     print(f"Best hps:{best_hps.values}")
 
@@ -201,6 +202,6 @@ if __name__ == '__main__':
     best_model.summary()
 
     # train
-    train_network(best_model, X_train, y_train, args.model, epochs=1, save_flag=True)
+    train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
     # evaluate
     evaluate_model(best_model, X_test, y_test)
