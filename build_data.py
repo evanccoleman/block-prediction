@@ -69,7 +69,7 @@ Parameters:
 Function will save the matrices to h5 file. 
 Returns an array of matrices.
 '''
-def generate_multiple_uniform(matrix_size, amount=2):
+def generate_multiple_uniform(matrix_size, amount=1000):
     # We will go by a general rule that max noise=0.3 and max denoise=0.4
     # in order to still have "visible" blocks
     array_of_matrices = np.empty((matrix_size, matrix_size, amount))
@@ -82,10 +82,10 @@ def generate_multiple_uniform(matrix_size, amount=2):
         # Generate block sizes for current matrix
         blocks, block_size = generate_fixed_blocks(matrix_size, block_ratio=block_ratio)
         block_size_array.append(block_size)
-
+        print("Genreated block sizes")
         # Generate the matrix
         array_of_matrices[:, :, i] = generate_data(matrix_size, blocks, noise=0.2, de_noise=0.2)
-
+        print("Generated matrices")
     #blocks_array = np.array(blocks)
     #blocks_array = np.expand_dims(blocks_array, axis=-1)
 
@@ -96,7 +96,7 @@ def generate_multiple_uniform(matrix_size, amount=2):
 
         matrixset_name = 'matrix_of_' + str(matrix_size)
         f.create_dataset(matrixset_name, data=array_of_matrices)
-
+        
 
         labelset_name = 'labels_for_' + str(matrix_size)
         f.create_dataset(labelset_name, data=block_size_array)
