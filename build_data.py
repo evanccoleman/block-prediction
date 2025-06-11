@@ -69,7 +69,7 @@ Parameters:
 Function will save the matrices to h5 file. 
 Returns an array of matrices.
 '''
-def generate_multiple_uniform(matrix_size, amount=1000):
+def generate_multiple_uniform(matrix_size, amount=2):
     # We will go by a general rule that max noise=0.3 and max denoise=0.4
     # in order to still have "visible" blocks
     array_of_matrices = np.empty((matrix_size, matrix_size, amount))
@@ -92,7 +92,7 @@ def generate_multiple_uniform(matrix_size, amount=1000):
 
 
     # SAVE THE NEW MATRIX TO AN H5 FILE
-    with h5py.File('synthetic_data.h5', 'a') as f:
+    with h5py.File('synthetic_data.h5', 'w') as f:
 
         matrixset_name = 'matrix_of_' + str(matrix_size)
         f.create_dataset(matrixset_name, data=array_of_matrices)
@@ -172,7 +172,7 @@ Parameters:
     - height: The height of the pngs. By default, pass the matrix size.
     - base_dir: Where to store the pngs.
 '''
-def store_pngs(data, labels, width, height, base_dir='png_dataset2'):
+def store_pngs(data, labels, width, height, base_dir='png_with_noise'):
     os.makedirs(base_dir, exist_ok=True)
     matrix_size = data[:, :, 0].shape[0]
     size_folder = os.path.join(base_dir, f'size_{matrix_size}')
@@ -191,17 +191,26 @@ def store_pngs(data, labels, width, height, base_dir='png_dataset2'):
 def generate_acceptable_blocks(matrix_size):
 
     block_list = []
-
+    grouped_list = []
     # all divisors of matrix size
     divisors = [d for d in range(1, matrix_size + 1) if matrix_size % d == 0]
-
-    # taking all divisors greater than 2% of matrix size but less than 30%
+    
+    # taking all divisors greater than 2% but less than 30% of matrix size
     for divisor in divisors:
         if (divisor) < (matrix_size * .30) and (divisor) > (matrix_size * .02):
             block_list.append(divisor)
-
-
-    return block_list
+    if len(block_list) > 4:
+        group_size = len(block_list) // 4
+        mid_group = group_size // 2
+        start = 0
+        for i in range(4):
+            end = start + group_size
+            grouped_list.append(block_list[start:end])
+            start = end
+        ideal_list = [group[mid_group] for group in grouped_list] # I should technically have an if/else case for empty groups, but large matrices wont allow for empty group
+        return ideal_list
+    else:
+        return block_list
 '''
 This function will generate varying matrix sizes
 
@@ -229,8 +238,8 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100,5
     used_sizes = []
     # we want size_amount of matrix sizes
     for i in range(size_amount):
-        # pick the current size randomly, but I need it to be divisible by 10 for ease
-        this_size = random.choice(range(size_range[0], size_range[1], 10))
+        # pick the current size randomly, but I need it to be divisible by 100 for ease
+        this_size = random.choice(range(size_range[0], size_range[1], 100))
         while this_size in used_sizes:
             this_size = random.choice(size_range)
         used_sizes.append(this_size)
@@ -263,7 +272,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100,5
             # append block size to list of all blocks for all matrices of this size
             block_size_array.append(block_size)
             # generate the matrix
-            array_of_matrices[:, :, j] = generate_data(this_size, blocks, noise=0.01, de_noise=0.01)
+            array_of_matrices[:, :, j] = generate_data(this_size, blocks, noise=0.20, de_noise=0.01)
             if (j == 0):
                 print(array_of_matrices[:,:,j])
 
@@ -277,10 +286,10 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100,5
         matplotlib.pyplot.show()
     return
 
-#print(f"Acceptable block sizes for matrix of size 470: {generate_acceptable_blocks(470)}")
+#print(f"Acceptable block sizes for matrix of size 10000: {generate_acceptable_blocks(10000)}")
 
-generate_varying_matrices(5, sample_amount=1000, size_range=(100,500))
-
+#generate_varying_matrices(1, sample_amount=1000, size_range=(128,128))
+generate_multiple_uniform(128)
 
 
 

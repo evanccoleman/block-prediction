@@ -51,7 +51,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='png_dataset2/size_170',  # './artificial.h5',
+        default='png_with_noise/size_700',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -73,7 +73,7 @@ def parse_cli():
     )
     return parser.parse_args()
 
-def load_data(path, target_size=(170,170)):
+def load_data(path, target_size):
     data = []
     labels = []
     for label_folder in os.listdir(path):
@@ -155,19 +155,24 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
 
 def evaluate_model(model, X_test, y_test):
     test_loss, test_acc = model.evaluate(X_test, y_test)
-    print(f"Test Loss (MSE): {test_loss}")
+    print(f"Categorical Cross-entropy Loss (MSE): {test_loss}")
     print(f"Test Accuracy: {test_acc}")
 
 if __name__ == '__main__':
     args = parse_cli()
     # load data
-    data, labels = load_data(args.train)
+    data, labels = load_data(args.train, (700, 700)) #can specify which size matrix here as second parameter
+    print(f"Args.train is {args.train}")
+    #directory = args.train
+    #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
+    #print(f"File names: {file_names}")
     print(f"Data Shape:{data.shape}")  # Shape of the data
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
     # label mapping
     # add code here to pull sizes from directory
-    block_sizes = [10, 17, 34, 5]
-    label_to_index = {10: 0, 17: 1, 34: 2, 5: 3}
+
+    block_sizes = [140, 25, 35, 70]
+    label_to_index = {140: 0, 25: 1, 35: 2, 70: 3}
     # convert labels to class indices
     labels = np.array([label_to_index[val] for val in labels])
 
@@ -193,8 +198,8 @@ if __name__ == '__main__':
     )
 
     # find best model/hps
-    early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-    tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
+    #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
     best_hps = tuner.get_best_hyperparameters(1)[0]
     print(f"Best hps:{best_hps.values}")
 
@@ -203,5 +208,6 @@ if __name__ == '__main__':
 
     # train
     train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
+    
     # evaluate
     evaluate_model(best_model, X_test, y_test)
