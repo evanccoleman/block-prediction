@@ -36,7 +36,7 @@ def generate_data(matrix_size, block_sizes, noise=0.2, de_noise=0.4):
             break # don't let block exceed matrix boundaries
 
         # Fill block with ones
-        matrix[row:row+block, col:col+block] = 1
+        matrix[row:row+block, col:col+block] = np.random.uniform(low=-1.0, high=0.0, size=(block,block))
         block_mask[row:row+block, col:col+block] = True # also add to block_mask
 
         # Move diagonally
@@ -56,8 +56,22 @@ def generate_data(matrix_size, block_sizes, noise=0.2, de_noise=0.4):
     noise_mask = np.logical_and(noise_mask, ~block_mask)
 
     # Apply noise to matrix
-    # These values should be from 0-0.5
-    matrix[noise_mask] = 1
+    # Should be negative as well
+    num_noise_cells = noise_mask.sum()
+    if num_noise_cells:
+        matrix[noise_mask] = np.random.uniform(-1.0, 0.0, size=num_noise_cells)
+    
+    # Reset rows and columns to ensure diagonal is all 1s
+    row, col = 0, 0
+
+    for i in range(matrix_size + 1):
+        if row + 1> matrix_size or col + 1 > matrix_size:
+            break
+        matrix[row:row + 1, col:col + 1] = 1
+
+        # Move diagonally
+        row += 1
+        col += 1
 
     return matrix
 
