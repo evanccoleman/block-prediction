@@ -32,7 +32,7 @@ def parse_cli():
         nargs='?',
         type=positive_int,
         action='store',
-        default=1,
+        default=10,
         help='number of training epochs'
     )
     parser.add_argument(
@@ -40,7 +40,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./synthetic_data.h5',  # './artificial.h5',
+        default='./tested_synthetic.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
