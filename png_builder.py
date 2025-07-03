@@ -6,8 +6,8 @@ import scipy.sparse as sp
 from PIL import Image
 from matplotlib import pyplot as plt
 from block_jacobi import find_best_block_size
-
-
+random.seed(42)
+np.random.seed(42)
 def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
     rng = np.random.default_rng(random_state)
     blocks = []
@@ -93,10 +93,14 @@ def store_pngs(data, labels, width, height, base_dir='png_dataset'):
         label_folder = os.path.join(size_folder, f'label_{label}')
         os.makedirs(label_folder, exist_ok=True)
     for i in range(len(data)):
-        matrix = data[i]
-        img = matrix_to_png(matrix)
+        #matrix = data[i]
+        #img = matrix_to_png(matrix)
         file_path = os.path.join(size_folder, f'label_{labels[i]}',f'matrix_{i}.png')
-        img.save(file_path)
+        #img.save(file_path)
+
+        fig, ax = plt.subplots()
+        ax.set_axis_off()
+        plt.savefig(file_path, bbox_inches='tight', pad_inches=0)
 
 
 '''
@@ -178,8 +182,18 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         # print(pngs[0].size)
         # pngs[0].show()
         # compare to matplotlib image
-        #plt.spy(data[:, :, 0])
+        #plt.spy()
         #plt.show()
     return
 
-generate_varying_matrices(5, 1, size_range=(20,100))
+generate_varying_matrices(1, 1, size_range=(20,100))
+# acceptable_blocks = generate_acceptable_blocks(100)
+# blocks = []
+# block_size = random.choice(acceptable_blocks)
+# num_blocks = 100 // block_size
+#
+#             # add these blocks to list so we can generate matrix
+# for k in range(num_blocks):
+#     blocks.append(block_size)
+# A = generate_sparse(blocks, noise=0.01, de_noise=0.01)
+
