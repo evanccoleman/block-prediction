@@ -86,17 +86,15 @@ Parameters:
 '''
 def store_pngs(data, labels, width, height, base_dir='png_dataset'):
     os.makedirs(base_dir, exist_ok=True)
-    matrix_size = data[:, :, 0].shape[0]
+    matrix_size = data[0].shape[0]
     size_folder = os.path.join(base_dir, f'size_{matrix_size}')
     os.makedirs(size_folder, exist_ok=True)
     for label in labels:
         label_folder = os.path.join(size_folder, f'label_{label}')
         os.makedirs(label_folder, exist_ok=True)
-    for i in range(data.shape[2]):
-        matrix = data[:,:,i]
+    for i in range(len(data)):
+        matrix = data[i]
         img = matrix_to_png(matrix)
-        if (width != matrix_size) or (height != matrix_size):
-            img = img.resize((width, height))
         file_path = os.path.join(size_folder, f'label_{labels[i]}',f'matrix_{i}.png')
         img.save(file_path)
 
@@ -128,6 +126,7 @@ This will call a function that will return a list of acceptable block sizes base
 
 def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 501)):
     used_sizes = []
+
     # we want size_amount of matrix sizes
     for i in range(size_amount):
         # pick the current size randomly, but I need it to be divisible by 10 for ease
@@ -141,7 +140,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         best_size_array = []
 
         # variable to hold our matrices
-        array_of_matrices = np.empty((this_size, this_size, sample_amount))
+        dataset = []
 
         # generate our list of acceptable blocks for current size
         acceptable_blocks = generate_acceptable_blocks(this_size)
@@ -163,19 +162,18 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
 
             # generate the matrix
             A = generate_sparse(blocks, noise=0.01, de_noise=0.01)
-            
-            array_of_matrices[:, :, j] = A 
-            if (j == 0):
-                print(array_of_matrices[:, :, j])
-            
+
+            # store in list
+            dataset.append(A)
+
+            # find best block_jacobi size
             n = A.shape[0]
             b = np.ones(A.shape[0])
             
             best_size = find_best_block_size(n, A, b)
             best_size_array.append(best_size)
 
-        data = np.array(array_of_matrices)
-        store_pngs(data, block_size_array, 500, 500) # storing PNGS as 500x500 for now
+        store_pngs(dataset, best_size_array, 500, 500) # storing PNGS as 500x500 for now
 
         # print(pngs[0].size)
         # pngs[0].show()
@@ -184,4 +182,4 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         #plt.show()
     return
 
-generate_varying_matrices(5, 1000, size_range=(100,500))
+generate_varying_matrices(5, 1, size_range=(20,100))
