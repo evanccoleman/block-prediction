@@ -23,7 +23,8 @@ from tensorflow.python.keras.utils import np_utils
 from keras_tuner.tuners import RandomSearch
 from tensorflow.keras.preprocessing import image
 
-
+FRACTION_CLASSES = np.array([0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40])
+NUM_CLASSES      = len(FRACTION_CLASSES)
 
 def positive_int(value):
     try:
@@ -171,18 +172,20 @@ if __name__ == '__main__':
     # label mapping
     # add code here to pull sizes from directory
 
-    block_sizes = [140, 25, 35, 70]
-    label_to_index = {140: 0, 25: 1, 35: 2, 70: 3}
-    # convert labels to class indices
-    labels = np.array([label_to_index[val] for val in labels])
+    matrix_size = data.shape[1]
+
+    ratios = labels.astype(np.float32) / matrix_size
+    diff = np.abs(ratios[:, None] - FRACTION_CLASSES)
+    labels_idx = diff.argmin(axis=1).astype(np.int64)
+    print(f"Labels shape new: {labels_idx}")
 
     #split into train/test
-    X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(data, labels_idx, test_size=0.2, random_state=42)
 
     # one-hot encode labels
     # later, add variable that holds # of classes based on labels in folder
-    y_train = tf.keras.utils.to_categorical(y_train, num_classes=4)
-    y_test = tf.keras.utils.to_categorical(y_test, num_classes=4)
+    y_train = tf.keras.utils.to_categorical(y_train, num_classes=NUM_CLASSES)
+    y_test = tf.keras.utils.to_categorical(y_test, num_classes=NUM_CLASSES)
 
     # input shape
     input_shape = (data.shape[1], data.shape[2], 1)
