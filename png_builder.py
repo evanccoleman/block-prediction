@@ -54,7 +54,7 @@ def generate_acceptable_blocks(matrix_size):
 
     # taking all divisors greater than 2% of matrix size but less than 30%
     for divisor in divisors:
-            block_list.append(divisor*matrix_size)
+            block_list.append(int(divisor*matrix_size))
 
 
     return block_list
@@ -158,6 +158,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
 
             # the number of blocks
             num_blocks = this_size // block_size
+            print(f"num_blocks is {num_blocks}")
             remainder = this_size % block_size
             # add these blocks to list so we can generate matrix
             for k in range(num_blocks):
