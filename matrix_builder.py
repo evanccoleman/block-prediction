@@ -84,7 +84,7 @@ Parameters:
     - block_ratio: Ratio of block to matrix, i.e. what percentage of matrix size will our blocks be
 Function returns the list of blocks and the size.
 '''
-def generate_fixed_blocks(matrix_size, block_ratio=0.07):
+def generate_fixed_blocks(matrix_size, block_ratio=0.05):
     block_size = int(matrix_size * block_ratio)
     #print(f"The uniform block size is {block_size}")
     blocks = []
@@ -108,9 +108,10 @@ def generate_multiple_uniform(matrix_size, amount=1000):
     # in order to still have "visible" blocks
     array_of_matrices = np.empty((matrix_size, matrix_size, amount))
     block_size_array = []
+    fractions = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
     for i in range(amount):
         # Random block ratio
-        block_ratio = np.random.uniform(0.05, 0.1)
+        block_ratio = random.choice(fractions)
         #print(block_ratio)
 
         # Generate block sizes for current matrix
