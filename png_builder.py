@@ -184,7 +184,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         #plt.spy()
         #plt.show()
     return
-
+print(f"Acceptable blocks for size 128: {generate_acceptable_blocks(128)}")
 generate_varying_matrices(1, 1, size_range=(128,129))
 # acceptable_blocks = generate_acceptable_blocks(100)
 # blocks = []
