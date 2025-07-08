@@ -175,7 +175,7 @@ if __name__ == '__main__':
 
     matrix_size = data.shape[1]
 
-    block_classes = [fraction * matrix_size for fraction in FRACTION_CLASSES]
+    block_classes = [int(fraction * matrix_size) for fraction in FRACTION_CLASSES]
     print(block_classes)
     labels_idx = {j:i for i, j in enumerate(block_classes)}
     print(labels_idx)
