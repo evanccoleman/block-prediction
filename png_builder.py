@@ -186,7 +186,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         #plt.show()
     return
 
-generate_varying_matrices(1, 1, size_range=(20,100))
+generate_varying_matrices(1, 1, size_range=(128,129))
 # acceptable_blocks = generate_acceptable_blocks(100)
 # blocks = []
 # block_size = random.choice(acceptable_blocks)

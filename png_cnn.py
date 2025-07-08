@@ -52,7 +52,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='png_with_noise/size_700',  # './artificial.h5',
+        default='png_dataset/size_128',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -162,7 +162,7 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == '__main__':
     args = parse_cli()
     # load data
-    data, labels = load_data(args.train, (700, 700)) #can specify which size matrix here as second parameter
+    data, labels = load_data(args.train, (128, 128)) #can specify which size matrix here as second parameter
     print(f"Args.train is {args.train}")
     #directory = args.train
     #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
@@ -178,6 +178,7 @@ if __name__ == '__main__':
     diff = np.abs(ratios[:, None] - FRACTION_CLASSES)
     labels_idx = diff.argmin(axis=1).astype(np.int64)
     print(f"Labels shape new: {labels_idx}")
+    print(labels_idx)
 
     #split into train/test
     X_train, X_test, y_train, y_test = train_test_split(data, labels_idx, test_size=0.2, random_state=42)
