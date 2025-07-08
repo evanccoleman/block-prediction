@@ -5,7 +5,7 @@ import h5py
 import os
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
-#import keras_tuner
+import keras_tuner
 from tensorflow.keras import optimizers
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.layers import (Activation, add, Conv2D, Dense, Dropout, Flatten, Input, ZeroPadding2D)
@@ -51,7 +51,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./tested_synthetic.h5',  # './artificial.h5',
+        default='./tested_synthetic_class.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -185,7 +185,7 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == '__main__':
     args = parse_cli()
     # load data
-    data, labels = load_data(args.train, (128, 128)) #can specify which size matrix here as second parameter
+    data, labels = preprocess(*load_data(args.train, args.data, args.labels))
     print(f"Args.train is {args.train}")
     #directory = args.train
     #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
@@ -194,7 +194,7 @@ if __name__ == '__main__':
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
     # label mapping
     # add code here to pull sizes from directory
-
+    print(f"labels before indexing: {labels}")
     matrix_size = data.shape[1]
 
     block_classes = [int(fraction * matrix_size) for fraction in FRACTION_CLASSES]
@@ -202,6 +202,7 @@ if __name__ == '__main__':
     labels_idx = {j:i for i, j in enumerate(block_classes)}
     print(labels_idx)
     labels = np.array([labels_idx[val] for val in labels])
+    print(f"labels after indexing: {labels}")
     #split into train/test
     X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 

@@ -163,7 +163,7 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == '__main__':
     args = parse_cli()
     # load data
-    data, labels = load_data(args.train, (128, 128)) #can specify which size matrix here as second parameter
+    data, labels = load_data(args.train, (500, 500)) #can specify which size PNG
     print(f"Args.train is {args.train}")
     #directory = args.train
     #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
