@@ -21,7 +21,7 @@ from tensorflow.python.keras.utils import np_utils
 from keras_tuner.tuners import RandomSearch
 from tensorflow.keras.callbacks import EarlyStopping
 
-FRACTION_CLASSES = np.array([0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40])
+FRACTION_CLASSES = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
 NUM_CLASSES      = len(FRACTION_CLASSES)
 
 
@@ -184,20 +184,26 @@ def evaluate_model(model, X_test, y_test):
 
 if __name__ == '__main__':
     args = parse_cli()
-    # load and preprocess data
-    data, labels = preprocess(*load_data(args.train, args.data, args.labels))
+    # load data
+    data, labels = load_data(args.train, (128, 128)) #can specify which size matrix here as second parameter
+    print(f"Args.train is {args.train}")
+    #directory = args.train
+    #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
+    #print(f"File names: {file_names}")
     print(f"Data Shape:{data.shape}")  # Shape of the data
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
+    # label mapping
+    # add code here to pull sizes from directory
 
     matrix_size = data.shape[1]
 
-    ratios = labels.astype(np.float32) / matrix_size
-    diff = np.abs(ratios[:, None] - FRACTION_CLASSES)
-    labels_idx = diff.argmin(axis=1).astype(np.int64)
-    print(f"Labels shape new: {labels_idx}")
-
-    # split into train/test
-    X_train, X_test, y_train, y_test = train_test_split(data, labels_idx, test_size=0.2, random_state=42)
+    block_classes = [int(fraction * matrix_size) for fraction in FRACTION_CLASSES]
+    print(block_classes)
+    labels_idx = {j:i for i, j in enumerate(block_classes)}
+    print(labels_idx)
+    labels = np.array([labels_idx[val] for val in labels])
+    #split into train/test
+    X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 
     # one-hot encode labels
     y_train = tf.keras.utils.to_categorical(y_train, num_classes=NUM_CLASSES)
