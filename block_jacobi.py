@@ -2,6 +2,7 @@ from scipy.sparse.linalg import gmres
 from scipy.sparse import bmat, csc_matrix
 from scipy.sparse.linalg import inv
 import time
+FRACTION_CLASSES = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
 
 def block_jacobi_preconditioner(A, block_size):
     """
@@ -61,8 +62,8 @@ def find_best_block_size(n, A, b, eval_key='run_time'):
     #plt.figure()
     #plt.plot(counter.residuals)
     #plt.show()
-
-    for divisor in range(1, n//2):
+    divisors = [i * n for i in FRACTION_CLASSES]
+    for divisor in divisors:
         # print(f"Testing block size: {divisor}")
         counter_pre = gmres_counter(disp=False)
         # track time for M

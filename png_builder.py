@@ -158,10 +158,12 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
 
             # the number of blocks
             num_blocks = this_size // block_size
-
+            remainder = this_size % block_size
             # add these blocks to list so we can generate matrix
             for k in range(num_blocks):
                 blocks.append(block_size)
+            if remainder != 0:
+                blocks.append(remainder)
 
             # generate the matrix
             A = generate_sparse(blocks, noise=0.01, de_noise=0.01)
