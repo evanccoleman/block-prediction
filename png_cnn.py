@@ -5,6 +5,7 @@ import pickle
 import os
 import tensorflow as tf
 import sklearn
+from numpy.matrixlib.defmatrix import matrix
 from sklearn.preprocessing import LabelEncoder
 #import keras_tuner
 from tensorflow.keras import optimizers
@@ -23,7 +24,7 @@ from tensorflow.python.keras.utils import np_utils
 from keras_tuner.tuners import RandomSearch
 from tensorflow.keras.preprocessing import image
 
-FRACTION_CLASSES = np.array([0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40])
+FRACTION_CLASSES = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
 NUM_CLASSES      = len(FRACTION_CLASSES)
 
 def positive_int(value):
@@ -174,14 +175,13 @@ if __name__ == '__main__':
 
     matrix_size = data.shape[1]
 
-    ratios = labels.astype(np.float32) / matrix_size
-    diff = np.abs(ratios[:, None] - FRACTION_CLASSES)
-    labels_idx = diff.argmin(axis=1).astype(np.int64)
-    print(f"Labels shape new: {labels_idx}")
+    block_classes = [fraction * matrix_size for fraction in FRACTION_CLASSES]
+    print(block_classes)
+    labels_idx = {j:i for i, j in enumerate(block_classes)}
     print(labels_idx)
-
+    labels = np.array([labels_idx[val] for val in labels])
     #split into train/test
-    X_train, X_test, y_train, y_test = train_test_split(data, labels_idx, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 
     # one-hot encode labels
     # later, add variable that holds # of classes based on labels in folder

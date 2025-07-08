@@ -50,12 +50,11 @@ def generate_acceptable_blocks(matrix_size):
     block_list = []
 
     # all divisors of matrix size
-    divisors = [d for d in range(1, matrix_size + 1) if matrix_size % d == 0]
+    divisors = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
 
     # taking all divisors greater than 2% of matrix size but less than 30%
     for divisor in divisors:
-        if (divisor) < (matrix_size * .30) and (divisor) > (matrix_size * .02):
-            block_list.append(divisor)
+            block_list.append(divisor*matrix_size)
 
 
     return block_list
