@@ -148,9 +148,9 @@ def generate_multiple_uniform(matrix_size, amount=1000):
         #print(labels.shape)
 
 
-    print("Matrices of size " + str(matrix_size) + " saved to 'synthetic_data.h5'")
+    print("Matrices of size " + str(matrix_size) + " saved to 'tested_synthetic.h5'")
     #print("Block sizes of matrices: " + str(matrix_size))
     return array_of_matrices
 
-matrices_array = generate_multiple_uniform(128, amount=1)
+matrices_array = generate_multiple_uniform(128, amount=3000)
 
