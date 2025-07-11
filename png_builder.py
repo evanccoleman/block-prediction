@@ -6,6 +6,7 @@ import scipy.sparse as sp
 from PIL import Image
 from matplotlib import pyplot as plt
 from block_jacobi import find_best_block_size
+FRACTION_CLASSES = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
 random.seed(42)
 np.random.seed(42)
 def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
@@ -86,8 +87,13 @@ Parameters:
 def store_pngs(data, labels, width, height, base_dir='png_dataset'):
     os.makedirs(base_dir, exist_ok=True)
     matrix_size = data[0].shape[0]
+    classes = [int(i * matrix_size) for i in FRACTION_CLASSES]
     size_folder = os.path.join(base_dir, f'size_{matrix_size}')
     os.makedirs(size_folder, exist_ok=True)
+    class_path = os.path.join(size_folder, 'classes.txt')
+    with open(class_path, "w") as f:
+        for elem in classes:
+            f.write(f"{elem}\n")
     for label in labels:
         label_folder = os.path.join(size_folder, f'label_{label}')
         os.makedirs(label_folder, exist_ok=True)
@@ -148,36 +154,44 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         # generate our list of acceptable blocks for current size
         acceptable_blocks = generate_acceptable_blocks(this_size)
 
-        # we want to generate sample_amount of matrices for each size
-        for j in range(sample_amount):
-            # list of blocks for our current matrix
-            blocks = []
+        # we want to generate sample_amount of matrices for each LABEL
+        for block in acceptable_blocks:
+            print(f"CURRENT BLOCK IS: {block}. THERE SHOULD BE ONE SAMPLE PER BLOCK")
+            for j in range(sample_amount):
+                print(f"This is the sample amount loop. There should only be one sample, per label!")
+                print(f"Matrix size, in this loop, is {this_size}")
+                # list of blocks for our current matrix
+                blocks = []
 
-            # randomly pick a size from our list of acceptable blocks
-            block_size = random.choice(acceptable_blocks)
+                # the number of blocks
+                num_blocks = this_size // block
+                print(f"num_blocks is {num_blocks}")
 
-            # the number of blocks
-            num_blocks = this_size // block_size
-            print(f"num_blocks is {num_blocks}")
-            remainder = this_size % block_size
-            # add these blocks to list so we can generate matrix
-            for k in range(num_blocks):
-                blocks.append(block_size)
-            if remainder != 0:
-                blocks.append(remainder)
+                remainder = this_size % block
+                print(f"remainder is {remainder}")
+                # add these blocks to list so we can generate matrix
 
-            # generate the matrix
-            A = generate_sparse(blocks, noise=0.01, de_noise=0.01)
+                for k in range(num_blocks):
+                    blocks.append(block)
+                if remainder != 0:
+                    blocks.append(remainder)
+                print(f"Block sizes are {blocks}")
 
-            # store in list
-            dataset.append(A)
+                # generate the matrix
+                A = generate_sparse(blocks, noise=0.01, de_noise=0.01)
+                print(f"A shape is {A.shape}")
 
-            # find best block_jacobi size
-            n = A.shape[0]
-            b = np.ones(A.shape[0])
+                # store in list
+                dataset.append(A)
+
+                # find best block_jacobi size
+                n = A.shape[0]
+                print(f"n is {n} and this size is {this_size}")
+                b = np.ones(A.shape[0])
             
-            best_size = find_best_block_size(n, A, b)
-            best_size_array.append(best_size)
+                best_size = find_best_block_size(n, A, b)
+                best_size_array.append(best_size)
+                print("*" * 60)
 
         store_pngs(dataset, best_size_array, 500, 500) # storing PNGS as 500x500 for now
 
@@ -188,7 +202,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         #plt.show()
     return
 print(f"Acceptable blocks for size 128: {generate_acceptable_blocks(128)}")
-generate_varying_matrices(1, 1000, size_range=(128,129))
+generate_varying_matrices(1, 1, size_range=(128,129))
 # acceptable_blocks = generate_acceptable_blocks(100)
 # blocks = []
 # block_size = random.choice(acceptable_blocks)

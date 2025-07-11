@@ -64,7 +64,7 @@ def find_best_block_size(n, A, b, eval_key='run_time'):
     #plt.show()
     divisors = [int(i * n) for i in FRACTION_CLASSES]
     for divisor in divisors:
-        # print(f"Testing block size: {divisor}")
+        print(f"Testing block size: {divisor}")
         counter_pre = gmres_counter(disp=False)
         # track time for M
         start_time_for_M = time.perf_counter()

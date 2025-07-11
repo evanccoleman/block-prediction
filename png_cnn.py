@@ -78,17 +78,26 @@ def parse_cli():
 def load_data(path, target_size):
     data = []
     labels = []
-    for label_folder in os.listdir(path):
-        label = int(label_folder.split('_')[1])
-        for matrix in os.listdir(os.path.join(path, label_folder)):
-            if matrix.endswith(".png"):
-                img = image.load_img(os.path.join(path, label_folder, matrix), color_mode='grayscale', target_size=target_size)
-                img_array = image.img_to_array(img) / 255
-                data.append(img_array)
-                labels.append(label)
+    class_path = os.path.join(path, 'classes.txt')
+    with open(class_path, 'r') as f:
+        class_list = [int(line.strip()) for line in f]
+        print(f"Class list: {class_list}")
+    for entry in os.listdir(path):
+        entry_path = os.path.join(path, entry)
+        print(f"Current entry: {entry}")
+        if os.path.isdir(entry_path) and entry.startswith('label_'):
+            print(f"Label entry: {entry_path}")
+            label = int(entry.split('_')[1])
+            for matrix in os.listdir(os.path.join(path, entry)):
+                if matrix.endswith(".png"):
+                    print(f"Matrix: {matrix}")
+                    img = image.load_img(os.path.join(path, entry, matrix), color_mode='grayscale', target_size=target_size)
+                    img_array = image.img_to_array(img) / 255
+                    data.append(img_array)
+                    labels.append(label)
     data = np.array(data)
     labels = np.array(labels)
-    return data, labels
+    return data, labels, class_list
 
 def build_model(hp, input_shape):
     input_img = Input(shape=input_shape)
@@ -114,6 +123,8 @@ def build_model(hp, input_shape):
         conv2 = Conv2D(filters_2, kernel_size=(kernel_size_2, kernel_size_2),
                        padding='same', kernel_regularizer=l2(l2_reg))(act2)
 
+        if x.shape[-1] != filters_2:
+            x = Conv2D(filters_2, kernel_size=(1, 1), padding='same')(x)
         x = add([x, conv2])  # skip connection
 
     # corner detection block
@@ -128,7 +139,7 @@ def build_model(hp, input_shape):
     x = Dropout(hp.Float("dropout", 0.1, 0.5, step=0.1))(x)
 
 #### change the number before activation depending on # of classes  A
-    output = Dense(4, activation='softmax')(x)
+    output = Dense(NUM_CLASSES, activation='softmax')(x)
 
     model = Model(inputs=input_img, outputs=output)
 
@@ -163,23 +174,24 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == '__main__':
     args = parse_cli()
     # load data
-    data, labels = load_data(args.train, (500, 500)) #can specify which size PNG
+    data, labels, block_classes = load_data(args.train, (500, 500)) #can specify which size PNG
     print(f"Args.train is {args.train}")
     #directory = args.train
     #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
     #print(f"File names: {file_names}")
     print(f"Data Shape:{data.shape}")  # Shape of the data
     print(f"Labels Shape:{labels.shape}")  # Shape of the labels
+    print(f"Labels are: {labels}")
+    print(f"Class List:{block_classes}")
     # label mapping
     # add code here to pull sizes from directory
 
     matrix_size = data.shape[1]
 
-    block_classes = [int(fraction * matrix_size) for fraction in FRACTION_CLASSES]
-    print(block_classes)
     labels_idx = {j:i for i, j in enumerate(block_classes)}
     print(labels_idx)
     labels = np.array([labels_idx[val] for val in labels])
+    print(f"Labels after mapping: {labels}")
     #split into train/test
     X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 
@@ -198,12 +210,12 @@ if __name__ == '__main__':
         max_trials=10,
         executions_per_trial=1,
         directory='tuner_logs',
-        project_name='block_size_cnn_v2'
+        project_name='png_test'
     )
 
     # find best model/hps
-    #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-    #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
+    early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
     best_hps = tuner.get_best_hyperparameters(1)[0]
     print(f"Best hps:{best_hps.values}")
 
