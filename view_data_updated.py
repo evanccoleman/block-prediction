@@ -4,9 +4,9 @@ import numpy as np
 import h5py
 import time
 
-handle = h5py.File('./synthetic_data.h5', 'r+')
-data = np.array(handle['matrix_of_hard_64'])
-labels = np.array(handle['labels_for_hard_64'])
+handle = h5py.File('./tested_synthetic_test.h5', 'r+')
+data = np.array(handle['matrix_of_64'])
+labels = np.array(handle['labels_for_64'])
 
 handle.close()
 for i in range(data.shape[2]):

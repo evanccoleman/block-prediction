@@ -51,7 +51,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./tested_synthetic_class.h5',  # './artificial.h5',
+        default='./tested_synthetic.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -77,7 +77,7 @@ def parse_cli():
         metavar='DATA',
         type=str,
         dest='data',
-        default='matrix_of_128',
+        default='matrix_of_64',
         help='--'
     )
     parser.add_argument(
@@ -86,7 +86,7 @@ def parse_cli():
         metavar='LABEL',
         type=str,
         dest='labels',
-        default='labels_for_128',
+        default='labels_for_64',
         help='--'
     )
     return parser.parse_args()
@@ -137,7 +137,10 @@ def build_model(hp, input_shape):
         conv2 = Conv2D(filters_2, kernel_size=(kernel_size_2, kernel_size_2),
                        padding='same', kernel_regularizer=l2(l2_reg))(act2)
 
-        x = add([x, conv2])  # skip connection
+        if x.shape[-1] != conv2.shape[-1]:
+            x = Conv2D(conv2.shape[-1], kernel_size=(1, 1), padding='same')(x)
+
+        x = add([x, conv2])  # now shapes will match
 
     # corner detection block
     x = BatchNormalization()(x)
@@ -219,17 +222,17 @@ if __name__ == '__main__':
         max_trials=10,
         executions_per_trial=1,
         directory='tuner_logs',
-        project_name='block_size_cnn_v2'
+        project_name='dense_cnn_class'
     )
-    early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-    tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
+    #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
     best_hps = tuner.get_best_hyperparameters(1)[0]
     print(f"Best hps:{best_hps.values}")
     best_model = build_model(best_hps, input_shape)
     best_model.summary()
     # build and train model
-    model = build_model((data.shape[1], data.shape[2], 1))
-    model.summary()
+    #model = build_model((data.shape[1], data.shape[2], 1))
+    #model.summary()
 
     train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
     evaluate_model(best_model, X_test, y_test)
