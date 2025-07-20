@@ -12,7 +12,7 @@ from tensorflow.keras.regularizers import l2
 from tensorflow.keras.utils import plot_model
 import numpy as np
 from sklearn.model_selection import train_test_split
-
+import matplotlib.pyplot as plt
 
 def positive_int(value):
     try:
@@ -40,7 +40,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./tested_synthetic.h5',  # './artificial.h5',
+        default='./tested_synthetic_test.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -48,7 +48,7 @@ def parse_cli():
         metavar='MODEL',
         type=str,
         dest='model',
-        default='./latest_model.keras',
+        default='./latest_model_DenseReg.keras',
         help='path where to store the model'
     )
     parser.add_argument(
@@ -66,7 +66,7 @@ def parse_cli():
         metavar='DATA',
         type=str,
         dest='data',
-        default='matrix_of_128',
+        default='matrix_of_64',
         help='--'
     )
     parser.add_argument(
@@ -75,7 +75,7 @@ def parse_cli():
         metavar='LABEL',
         type=str,
         dest='labels',
-        default='labels_for_128',
+        default='labels_for_64',
         help='--'
     )
     return parser.parse_args()
@@ -83,8 +83,8 @@ def parse_cli():
 
 def load_data(path):
     with h5py.File(path, 'r') as handle:
-        labels = np.array(handle['labels_for_128'])
-        data = np.array(handle['matrix_of_128'])
+        labels = np.array(handle['labels_for_64'])
+        data = np.array(handle['matrix_of_64'])
 
         return data, labels
 
@@ -134,9 +134,9 @@ def train_network(model, data, labels, model_file, epochs, save_flag):
 
     if (save_flag):
         checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True, save_weights_only=False, mode='auto')
-        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9}, callbacks=[checkpoint])
+        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, callbacks=[checkpoint])
     else:
-        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0, class_weight={0: 0.1, 1: 0.9})
+        training = model.fit(data, labels, epochs=epochs, batch_size=8, validation_split=1.0/5.0)
 
     if (save_flag):
         with open('{}.history'.format(model_file), 'wb') as handle:
@@ -161,7 +161,29 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42)
 
     model = build_model(data.shape[1:],num_outputs=1)
-    train_network(model, X_train, y_train, arguments.model, arguments.epochs, arguments.save_flag)
+    train_network(model, X_train, y_train, arguments.model, epochs=20, arguments.save_flag)
     evaluate_model(model, X_test, y_test)
 
+    model_file = arguments.model
+    with open('{}.history'.format(model_file), 'rb') as handle:
+        history = pickle.load(handle)
 
+    # Plot training & validation Mean Absolute Error
+    plt.figure()
+    plt.plot(history['mae'])
+    plt.plot(history['val_mae'])
+    plt.title('Model MAE')
+    plt.ylabel('Mean Absolute Error')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper right')
+    plt.savefig("DenseReg_mae.png")
+
+    # Plot training & validation Loss (MSE)
+    plt.figure()
+    plt.plot(history['loss'])
+    plt.plot(history['val_loss'])
+    plt.title('Model Loss (MSE)')
+    plt.ylabel('Mean Squared Error')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper right')
+    plt.savefig("DenseReg_mse.png")

@@ -51,7 +51,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./tested_synthetic.h5',  # './artificial.h5',
+        default='./tested_synthetic_test.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -59,7 +59,7 @@ def parse_cli():
         metavar='MODEL',
         type=str,
         dest='model',
-        default='./latest_model.keras',
+        default='./latest_model_DenseClass.keras',
         help='path where to store the model'
     )
     parser.add_argument(
@@ -222,7 +222,7 @@ if __name__ == '__main__':
         max_trials=10,
         executions_per_trial=1,
         directory='tuner_logs',
-        project_name='dense_cnn_class'
+        project_name='dense_cnn_class2'
     )
     #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
@@ -234,30 +234,32 @@ if __name__ == '__main__':
     #model = build_model((data.shape[1], data.shape[2], 1))
     #model.summary()
 
-    train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
+    train_network(best_model, X_train, y_train, args.model, epochs=20, save_flag=True)
     evaluate_model(best_model, X_test, y_test)
 
     model_file = args.model
-    #with open('{}.history'.format(model_file), 'rb') as handle:
-    #    history = pickle.load(handle)
+    with open('{}.history'.format(model_file), 'rb') as handle:
+        history = pickle.load(handle)
 
     # Plot training & validation accuracy values
-    #plt.plot(history['accuracy'])
-    #plt.plot(history['val_accuracy'])
-    #plt.title('Model accuracy')
-    #plt.ylabel('Accuracy')
-    #plt.xlabel('Epoch')
-    #plt.legend(['Train', 'Validation'], loc='upper left')
-    #plt.show()
+    plt.figure()
+    plt.plot(history['accuracy'])
+    plt.plot(history['val_accuracy'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper left')
+    plt.savefig("denseClass_TrainAcc.png")
 
     # Plot training & validation loss values
-    #plt.plot(history['loss'])
-    #plt.plot(history['val_loss'])
-    #plt.title('Model loss')
-    #plt.ylabel('Loss')
-    #plt.xlabel('Epoch')
-    #plt.legend(['Train', 'Validation'], loc='upper left')
-    #plt.show()
+    plt.figure()
+    plt.plot(history['loss'])
+    plt.plot(history['val_loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper left')
+    plt.savefig("denseClass_trainLoss.png")
 # later need to convert back to block sizes
 # pred_classes = model.predict(X_test).argmax(axis=1)
 # pred_block_sizes = [block_sizes[i] for i in pred_classes]

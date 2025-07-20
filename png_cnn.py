@@ -45,7 +45,7 @@ def parse_cli():
         nargs='?',
         type=positive_int,
         action='store',
-        default=1,
+        default=10,
         help='number of training epochs'
     )
     parser.add_argument(
@@ -53,7 +53,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='png_dataset/size_128',  # './artificial.h5',
+        default='png_dataset64/size_64',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -61,7 +61,7 @@ def parse_cli():
         metavar='MODEL',
         type=str,
         dest='model',
-        default='./latest_model_pngs.h5',
+        default='./latest_model_PngClass.h5',
         help='path where to store the model'
     )
     parser.add_argument(
@@ -174,7 +174,7 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == '__main__':
     args = parse_cli()
     # load data
-    data, labels, block_classes = load_data(args.train, (500, 500)) #can specify which size PNG
+    data, labels, block_classes = load_data(args.train, (64, 64)) #can specify which size PNG
     print(f"Args.train is {args.train}")
     #directory = args.train
     #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
@@ -210,20 +210,45 @@ if __name__ == '__main__':
         max_trials=10,
         executions_per_trial=1,
         directory='tuner_logs',
-        project_name='png_test'
+        project_name='png_64_proj'
     )
 
     # find best model/hps
     #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
     best_hps = tuner.get_best_hyperparameters(1)[0]
+    print("Chosen learning rate:", best_hps.get("learning_rate"))
     print(f"Best hps:{best_hps.values}")
 
     best_model = build_model(best_hps, input_shape)
     best_model.summary()
 
     # train
-    train_network(best_model, X_train, y_train, args.model, epochs=8, save_flag=True)
+    train_network(best_model, X_train, y_train, args.model, epochs=20, save_flag=True)
     
     # evaluate
     evaluate_model(best_model, X_test, y_test)
+
+    model_file = args.model
+    with open('{}.history'.format(model_file), 'rb') as handle:
+        history = pickle.load(handle)
+    # Plot training & validation accuracy values
+    plt.figure()
+    plt.plot(history['accuracy'])
+    plt.plot(history['val_accuracy'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper left')
+    plt.savefig("pngClass_trainAcc.png")
+    # Plot training & validation loss values
+    plt.figure()
+    plt.plot(history['loss'])
+    plt.plot(history['val_loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Validation'], loc='upper left')
+    plt.savefig("pngClass_trainLoss.png")
+
+

@@ -119,7 +119,7 @@ def generate_multiple_uniform(matrix_size, amount=1000):
 
 
         # Generate the matrix
-        A = generate_data(matrix_size, blocks, noise=0.2, de_noise=0.0)
+        A = generate_data(matrix_size, blocks, noise=0.0, de_noise=0.0)
         array_of_matrices[:, :, i] = A
         n = A.shape[0]
         b = np.ones(A.shape[0])
@@ -152,4 +152,4 @@ def generate_multiple_uniform(matrix_size, amount=1000):
     #print("Block sizes of matrices: " + str(matrix_size))
     return array_of_matrices
 
-matrices_array = generate_multiple_uniform(64, amount=1)
+matrices_array = generate_multiple_uniform(64, amount=1000)
