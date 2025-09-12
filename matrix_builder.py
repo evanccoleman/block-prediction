@@ -1,4 +1,3 @@
-import ssgetpy
 from numpy.core.defchararray import lower
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import numpy as np
@@ -132,7 +131,7 @@ def generate_multiple_uniform(matrix_size, amount=1000):
 
 
     # SAVE THE NEW MATRIX TO AN H5 FILE
-    with h5py.File('tested_synthetic_test.h5', 'w') as f:
+    with h5py.File('size_128_amount_3000.h5', 'w') as f:
 
         matrixset_name = 'matrix_of_' + str(matrix_size)
         f.create_dataset(matrixset_name, data=array_of_matrices)
@@ -152,4 +151,4 @@ def generate_multiple_uniform(matrix_size, amount=1000):
     #print("Block sizes of matrices: " + str(matrix_size))
     return array_of_matrices
 
-matrices_array = generate_multiple_uniform(64, amount=1000)
+matrices_array = generate_multiple_uniform(128, amount=3000)

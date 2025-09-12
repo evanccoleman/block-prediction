@@ -40,7 +40,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./tested_synthetic_test.h5',  # './artificial.h5',
+        default='./size_128_amount_3000.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(

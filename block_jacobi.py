@@ -52,7 +52,7 @@ def find_best_block_size(n, A, b, eval_key='run_time'):
 
     # Original run time with no preconditioner
     start_time = time.perf_counter()
-    x, i_exitCode = gmres(A, b, rtol=1e-2, callback=counter, maxiter=int(1e6))
+    x, i_exitCode = gmres(A, b, tol=1e-2, callback=counter, maxiter=int(1e6))
     end_time = time.perf_counter()
     run_time = end_time - start_time
     #print(f"Original run time: {run_time}")
@@ -78,7 +78,7 @@ def find_best_block_size(n, A, b, eval_key='run_time'):
 
 
 
-        x_pre, exitCode = gmres(A, b, rtol=1e-2, callback=counter_pre,  M=M)
+        x_pre, exitCode = gmres(A, b, tol=1e-2, callback=counter_pre,  M=M)
         entire_end = time.perf_counter()
         end_after_M = time.perf_counter()
 

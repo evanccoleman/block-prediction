@@ -21,6 +21,8 @@ from tensorflow.python.keras.utils import np_utils
 from keras_tuner.tuners import RandomSearch
 from tensorflow.keras.callbacks import EarlyStopping
 
+#this line is to ignore GPU stuff
+tf.config.set_visible_devices([], 'GPU')
 FRACTION_CLASSES = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
 NUM_CLASSES      = len(FRACTION_CLASSES)
 
@@ -51,7 +53,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='./tested_synthetic_test.h5',  # './artificial.h5',
+        default='./size_128_amount_3000.h5',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -77,7 +79,7 @@ def parse_cli():
         metavar='DATA',
         type=str,
         dest='data',
-        default='matrix_of_64',
+        default='matrix_of_128',
         help='--'
     )
     parser.add_argument(
@@ -86,7 +88,7 @@ def parse_cli():
         metavar='LABEL',
         type=str,
         dest='labels',
-        default='labels_for_64',
+        default='labels_for_128',
         help='--'
     )
     return parser.parse_args()

@@ -84,7 +84,7 @@ Parameters:
     - height: The height of the pngs. By default, pass the matrix size.
     - base_dir: Where to store the pngs.
 '''
-def store_pngs(data, labels, width, height, base_dir='png_dataset64'):
+def store_pngs(data, labels, width, height, base_dir='png_dataset128'):
     os.makedirs(base_dir, exist_ok=True)
     matrix_size = data[0].shape[0]
     classes = [int(i * matrix_size) for i in FRACTION_CLASSES]
@@ -98,14 +98,20 @@ def store_pngs(data, labels, width, height, base_dir='png_dataset64'):
         label_folder = os.path.join(size_folder, f'label_{label}')
         os.makedirs(label_folder, exist_ok=True)
     for i in range(len(data)):
-        #matrix = data[i]
-        #img = matrix_to_png(matrix)
+        matrix = data[i]
+        img = matrix_to_png(matrix)
         file_path = os.path.join(size_folder, f'label_{labels[i]}',f'matrix_{i}.png')
+        img.save(file_path)
+
+        #fig, ax = plt.subplots()
+        #ax.set_axis_off()
+        #plt.savefig(file_path, bbox_inches='tight', pad_inches=0)img = matrix_to_png(matrix)
+        #file_path = os.path.join(size_folder, f'label_{labels[i]}',f'matrix_{i}.png')
         #img.save(file_path)
 
-        fig, ax = plt.subplots()
-        ax.set_axis_off()
-        plt.savefig(file_path, bbox_inches='tight', pad_inches=0)
+        #fig, ax = plt.subplots()
+        #ax.set_axis_off()
+        #plt.savefig(file_path, bbox_inches='tight', pad_inches=0)
 
 
 '''
@@ -154,10 +160,12 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         # generate our list of acceptable blocks for current size
         acceptable_blocks = generate_acceptable_blocks(this_size)
 
+        # samples per label
+        block_samples = sample_amount // len(acceptable_blocks)
         # we want to generate sample_amount of matrices for each LABEL
         for block in acceptable_blocks:
             #print(f"CURRENT BLOCK IS: {block}. THERE SHOULD BE ONE SAMPLE PER BLOCK")
-            for j in range(sample_amount):
+            for j in range(block_samples):
                 #print(f"This is the sample amount loop. There should only be one sample, per label!")
                 #print(f"Matrix size, in this loop, is {this_size}")
                 # list of blocks for our current matrix
@@ -193,7 +201,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
                 best_size_array.append(best_size)
                 #print("*" * 60)
 
-        store_pngs(dataset, best_size_array, 64, 64) # storing PNGS as 500x500 for now
+        store_pngs(dataset, best_size_array, 500, 500) # storing PNGS as 100x100 for now
 
         # print(pngs[0].size)
         # pngs[0].show()
@@ -202,7 +210,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         #plt.show()
     return
 #print(f"Acceptable blocks for size 128: {generate_acceptable_blocks(128)}")
-generate_varying_matrices(1, 125, size_range=(64,65))
+generate_varying_matrices(1, 3000, size_range=(128,129))
 # acceptable_blocks = generate_acceptable_blocks(100)
 # blocks = []
 # block_size = random.choice(acceptable_blocks)
