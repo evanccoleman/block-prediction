@@ -43,7 +43,7 @@ def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
             (A.data[keep_mask],
              (A.row[keep_mask], A.col[keep_mask])),
             shape=A.shape)
-    A.setdiag(1)
+    A.setdiag(100)
     return A.tocsr()
 
 def generate_acceptable_blocks(matrix_size):
@@ -210,7 +210,7 @@ def generate_varying_matrices(size_amount, sample_amount=1000, size_range=(100, 
         #plt.show()
     return
 #print(f"Acceptable blocks for size 128: {generate_acceptable_blocks(128)}")
-generate_varying_matrices(1, 3000, size_range=(128,129))
+generate_varying_matrices(1, 1000, size_range=(5000,5001))
 # acceptable_blocks = generate_acceptable_blocks(100)
 # blocks = []
 # block_size = random.choice(acceptable_blocks)
