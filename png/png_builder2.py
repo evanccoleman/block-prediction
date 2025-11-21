@@ -30,7 +30,7 @@ def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
                 block,
                 density=1.0,
                 format="coo",
-                data_rvs=lambda k: rng.uniform(-0.1, 0.0, size=k),
+                data_rvs=lambda k: rng.uniform(low=-0.10, high=0.0, size=k),
             )
         )
     A = sp.block_diag(blocks, format='coo')
@@ -42,7 +42,7 @@ def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
             n,
             density=noise,
             format="coo",
-            data_rvs=lambda k: rng.uniform(-.1, 0.0, size=k),
+            data_rvs=lambda k: rng.uniform(low=-0.10, high=0.0, size=k),
         )
         A = A + noise_mask
         A.sum_duplicates()
