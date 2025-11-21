@@ -226,8 +226,8 @@ if __name__ == '__main__':
         directory='tuner_logs',
         project_name='dense_cnn'
     )
-    #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-    #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
+    early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])
     best_hps = tuner.get_best_hyperparameters(1)[0]
     print(f"Best hps:{best_hps.values}")
     best_model = build_model(best_hps, input_shape)
