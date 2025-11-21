@@ -15,8 +15,8 @@ np.random.seed(42)
 
 def parse_cli():
     parser = argparse.ArgumentParser(description="PNG Builder")
-    parser.add_argument("size", type=int, help="Size of matrices to generate")
-    parser.add_argument("name", type=str, help="Folder name to save to")
+    parser.add_argument("--size", type=int, default=500, help="Size of matrices to generate")
+    parser.add_argument("--name", "-n", type=str, help="Folder name to save to")
     parser.add_argument("--samples", "-s", type=int, default=3000, help="The number of samples")
     return parser.parse_args()
 
@@ -163,7 +163,7 @@ def generate_matrices(size, folder_name, sample_amount=3000):
     for block in acceptable_blocks:
         #print(f"CURRENT BLOCK IS: {block}. THERE SHOULD BE ONE SAMPLE PER BLOCK")
         for j in range(block_samples):
-            print(f"Sample#: {j}")
+            #print(f"Sample#: {j}")
             # list of blocks for our current matrix
             blocks = []
 

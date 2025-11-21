@@ -113,7 +113,7 @@ def find_best_block_size(n, A, b, eval_key='iterations'):
             print("Error: No divisors available. Returning None.")
             return None
     best_block = min(pre_iters, key=lambda k: pre_iters[k][eval_key])
-    print("Made it through")
+    #print("Made it through")
     #print(f"Best block size: {best_block} with {pre_iters[best_block]['iterations']} iterations and {pre_iters[best_block]['run_time']} run time.")
     #print(pre_iters)
     return best_block
