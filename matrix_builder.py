@@ -129,9 +129,9 @@ def generate_multiple_uniform(matrix_size, amount=1000):
     #blocks_array = np.expand_dims(blocks_array, axis=-1)
 
 
-
+    file_name = 'size_' + str(matrix_size) + '_amount_' + str(amount)
     # SAVE THE NEW MATRIX TO AN H5 FILE
-    with h5py.File('size_128_amount_3000.h5', 'w') as f:
+    with h5py.File(file_name, 'w') as f:
 
         matrixset_name = 'matrix_of_' + str(matrix_size)
         f.create_dataset(matrixset_name, data=array_of_matrices)
@@ -147,8 +147,8 @@ def generate_multiple_uniform(matrix_size, amount=1000):
         #print(labels.shape)
 
 
-    print("Matrices of size " + str(matrix_size) + " saved to 'tested_synthetic.h5'")
+    print("Matrices of size " + str(matrix_size) + " saved to file " + file_name)
     #print("Block sizes of matrices: " + str(matrix_size))
     return array_of_matrices
 
-matrices_array = generate_multiple_uniform(128, amount=3000)
+matrices_array = generate_multiple_uniform(500, amount=3000)

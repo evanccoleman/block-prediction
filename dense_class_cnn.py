@@ -61,7 +61,7 @@ def parse_cli():
         metavar='MODEL',
         type=str,
         dest='model',
-        default='./latest_model_DenseClass.keras',
+        default='./latest_model_DenseClass.h5',
         help='path where to store the model'
     )
     parser.add_argument(
@@ -224,7 +224,7 @@ if __name__ == '__main__':
         max_trials=10,
         executions_per_trial=1,
         directory='tuner_logs',
-        project_name='dense_cnn_class2'
+        project_name='dense_cnn'
     )
     #early_stop = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     #tuner.search(X_train, y_train, epochs=8, validation_split=0.2, callbacks=[early_stop])

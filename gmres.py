@@ -87,7 +87,7 @@ def find_best_block_size(n, A, b):
     print(f"Exit code is {i_exitCode}")
     plt.figure()
     plt.plot(counter.residuals)
-    plt.show()
+    #plt.show()
 
     for divisor in range(1, n):
     #for divisor in divisors:
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     print("=" * 100)
     #print(A)
     plt.spy(A, markersize=1)
-    plt.show()
+    #plt.show()
     # grab all divisors
 
         # M = block_jacobi_preconditioner(A, 5)

@@ -2,9 +2,9 @@
 
 ##NECESSARY JOB SPECIFICATIONS
 #SBATCH --job-name=Generate_Dense
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --ntasks=1
-#SBATCH --mem=4G
+#SBATCH --mem=32G
 #SBATCH --output=Gen_Dense.%j
 #SBATCH --partition=cpu
 cd $SCRATCH

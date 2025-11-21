@@ -66,7 +66,7 @@ def parse_cli():
         metavar='DATA',
         type=str,
         dest='data',
-        default='matrix_of_64',
+        default='matrix_of_128',
         help='--'
     )
     parser.add_argument(
@@ -75,16 +75,16 @@ def parse_cli():
         metavar='LABEL',
         type=str,
         dest='labels',
-        default='labels_for_64',
+        default='labels_for_128',
         help='--'
     )
     return parser.parse_args()
 
 
-def load_data(path):
+def load_data(path, labels, data):
     with h5py.File(path, 'r') as handle:
-        labels = np.array(handle['labels_for_64'])
-        data = np.array(handle['matrix_of_64'])
+        labels = np.array(handle[labels])
+        data = np.array(handle[data])
 
         return data, labels
 
@@ -150,7 +150,7 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == '__main__':
     arguments = parse_cli()
     print("complete (1)")
-    data, labels = preprocess(*load_data(arguments.train)) #, arguments.data, arguments.labels
+    data, labels = preprocess(*load_data(arguments.train, arguments.labels, arguments.data)) #, arguments.data, arguments.labels
     print(f"Data shape is: {data.shape}")
     print(f"Labels shape is: {labels.shape}")
 

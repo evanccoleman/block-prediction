@@ -53,7 +53,7 @@ def parse_cli():
         metavar='TRAIN',
         type=str,
         dest='train',
-        default='png_dataset64/size_64',  # './artificial.h5',
+        default='png_dataset128',  # './artificial.h5',
         help='path to the HDF5 file with the training data'
     )
     parser.add_argument(
@@ -73,6 +73,14 @@ def parse_cli():
         default=True,
         help='Flag to determine whether to enable checkpointing and writing to disk'
     )
+
+    parser.add_argument(
+        '-T', '--target',
+        nargs='?',
+        type=positive_int,
+        default=500,
+        help='Target size'
+    )
     return parser.parse_args()
 
 def load_data(path, target_size):
@@ -81,16 +89,16 @@ def load_data(path, target_size):
     class_path = os.path.join(path, 'classes.txt')
     with open(class_path, 'r') as f:
         class_list = [int(line.strip()) for line in f]
-        print(f"Class list: {class_list}")
+        #print(f"Class list: {class_list}")
     for entry in os.listdir(path):
         entry_path = os.path.join(path, entry)
-        print(f"Current entry: {entry}")
+        #print(f"Current entry: {entry}")
         if os.path.isdir(entry_path) and entry.startswith('label_'):
-            print(f"Label entry: {entry_path}")
+            #print(f"Label entry: {entry_path}")
             label = int(entry.split('_')[1])
             for matrix in os.listdir(os.path.join(path, entry)):
                 if matrix.endswith(".png"):
-                    print(f"Matrix: {matrix}")
+                    #print(f"Matrix: {matrix}")
                     img = image.load_img(os.path.join(path, entry, matrix), color_mode='grayscale', target_size=target_size)
                     img_array = image.img_to_array(img) / 255
                     data.append(img_array)
@@ -154,12 +162,12 @@ def build_model(hp, input_shape):
 
 def train_network(model, data, labels, model_file, epochs, save_flag):
     #plot_model(model, to_file='{}.png'.format(model_file), show_shapes=True)
-
+    #verbose false or truee
     if (save_flag):
-        checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=True, save_best_only=True, save_weights_only=False, mode='auto')
-        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0, callbacks=[checkpoint])
+        checkpoint = ModelCheckpoint(model_file, monitor='val_loss', verbose=False, save_best_only=True, save_weights_only=False, mode='auto')
+        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0,verbose=0, callbacks=[checkpoint])
     else:
-        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0)
+        training = model.fit(data, labels, epochs=epochs, batch_size=10, validation_split=1.0/5.0, verbose=0)
 
     if (save_flag):
         with open('{}.history'.format(model_file), 'wb') as handle:
@@ -174,24 +182,24 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == '__main__':
     args = parse_cli()
     # load data
-    data, labels, block_classes = load_data(args.train, (64, 64)) #can specify which size PNG
-    print(f"Args.train is {args.train}")
+    data, labels, block_classes = load_data(args.train, (args.target, args.target)) #can specify which size PNG
+    #print(f"Args.train is {args.train}")
     #directory = args.train
     #file_names = [f.name for f in os.scandir(directory) if f.is_file()]
     #print(f"File names: {file_names}")
-    print(f"Data Shape:{data.shape}")  # Shape of the data
-    print(f"Labels Shape:{labels.shape}")  # Shape of the labels
-    print(f"Labels are: {labels}")
-    print(f"Class List:{block_classes}")
+    #print(f"Data Shape:{data.shape}")  # Shape of the data
+    #print(f"Labels Shape:{labels.shape}")  # Shape of the labels
+    #print(f"Labels are: {labels}")
+    #print(f"Class List:{block_classes}")
     # label mapping
     # add code here to pull sizes from directory
 
     matrix_size = data.shape[1]
 
     labels_idx = {j:i for i, j in enumerate(block_classes)}
-    print(labels_idx)
+    #print(labels_idx)
     labels = np.array([labels_idx[val] for val in labels])
-    print(f"Labels after mapping: {labels}")
+    #print(f"Labels after mapping: {labels}")
     #split into train/test
     X_train, X_test, y_train, y_test = train_test_split(data, labels.T, test_size=0.2, random_state=42)
 
@@ -202,7 +210,7 @@ if __name__ == '__main__':
 
     # input shape
     input_shape = (data.shape[1], data.shape[2], 1)
-    print(f"Input Shape: {input_shape}")
+    #print(f"Input Shape: {input_shape}")
     # keras tuner
     tuner = RandomSearch(
         lambda hp: build_model(hp, input_shape),
@@ -210,7 +218,7 @@ if __name__ == '__main__':
         max_trials=10,
         executions_per_trial=1,
         directory='tuner_logs',
-        project_name='png_64_proj'
+        project_name='png_proj'
     )
 
     # find best model/hps
@@ -224,7 +232,7 @@ if __name__ == '__main__':
     best_model.summary()
 
     # train
-    train_network(best_model, X_train, y_train, args.model, epochs=20, save_flag=True)
+    train_network(best_model, X_train, y_train, args.model, args.epochs, save_flag=True)
     
     # evaluate
     evaluate_model(best_model, X_test, y_test)
