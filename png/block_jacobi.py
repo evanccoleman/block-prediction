@@ -2,6 +2,7 @@ from scipy.sparse.linalg import gmres
 from scipy.sparse import bmat, csc_matrix
 from scipy.sparse.linalg import inv
 import time
+
 FRACTION_CLASSES = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
 
 def block_jacobi_preconditioner(A, block_size):
@@ -23,8 +24,11 @@ def block_jacobi_preconditioner(A, block_size):
     inv_blocks = []
     for row_start in range(0, n, block_size):
         row_end = min(row_start + block_size, n)
+        # Extract sub-block
         block = A[row_start:row_end, row_start:row_end]
+        # Convert to CSC for efficient inversion
         block = csc_matrix(block)
+        # Invert (Note: dense inversion of sparse block)
         inv_blocks.append(inv(block))
 
     # Create the block diagonal preconditioner matrix
@@ -48,14 +52,16 @@ class gmres_counter(object):
 
 def find_best_block_size(n, A, b, eval_key='iterations'):
     pre_iters = {}
-    counter = gmres_counter(disp=False)
 
-    # Original run time with no preconditioner
-    start_time = time.perf_counter() # rtol -> tol
+
+    # 1. Run Baseline (No Preconditioner)
+    # We check this to ensure the matrix isn't trivial or broken
     start_time = time.perf_counter()
-    x, i_exitCode = gmres(A, b, rtol=1e-2, callback=counter, maxiter=int(1e6))
+    counter = gmres_counter(disp=False)
+    _, i_exitCode = gmres(A, b, rtol=1e-2, callback=counter, maxiter=int(1e6))
     end_time = time.perf_counter()
     run_time = end_time - start_time
+
     #print(f"Original run time: {run_time}")
     #print(f"Original number of iterations: {counter.niter}")
     #print(f"rk is {counter.rk}")
@@ -63,6 +69,8 @@ def find_best_block_size(n, A, b, eval_key='iterations'):
     #plt.figure()
     #plt.plot(counter.residuals)
     #plt.show()
+
+    # 2. Test Preconditioner Block Sizes
     divisors = [int(i * n) for i in FRACTION_CLASSES]
     for divisor in divisors:
         #print(f"Testing block size: {divisor}")
@@ -71,16 +79,15 @@ def find_best_block_size(n, A, b, eval_key='iterations'):
         start_time_for_M = time.perf_counter()
         # track entire runtime
         entire_start = time.perf_counter()
+
+        # Build Preconditioner
         M = block_jacobi_preconditioner(A, divisor)
         # M run time end
         end_time_for_M = time.perf_counter()
         # track time after M
         start_after_M = time.perf_counter()
 
-
-        # rtol -> tol
-        x_pre, exitCode = gmres(A, b, rtol=1e-2, callback=counter_pre,  M=M)
-
+        # Run GMRES with Preconditioner
         x_pre, exitCode = gmres(A, b, rtol=1e-2, callback=counter_pre, maxiter=int(1e6), M=M)
         entire_end = time.perf_counter()
         end_after_M = time.perf_counter()
@@ -98,10 +105,13 @@ def find_best_block_size(n, A, b, eval_key='iterations'):
             #print("Converged")
             pre_iters[divisor] = {
                 'run_time': entire_run,
+                'M_run_time': M_run_time,
+                'GMRES_run_time': run_after_M,
                 'iterations': counter_pre.niter
                 }
 
-    # Check if any block sizes converged
+
+    # 3. Select Best Block Size
     if not pre_iters:
         print("Warning: No block sizes converged. Using smallest block size as fallback.")
         # Return the smallest block size as a fallback
@@ -113,8 +123,6 @@ def find_best_block_size(n, A, b, eval_key='iterations'):
             print("Error: No divisors available. Returning None.")
             return None
     best_block = min(pre_iters, key=lambda k: pre_iters[k][eval_key])
-    #print("Made it through")
-    #print(f"Best block size: {best_block} with {pre_iters[best_block]['iterations']} iterations and {pre_iters[best_block]['run_time']} run time.")
-    #print(pre_iters)
+
     return best_block
 

@@ -1,15 +1,20 @@
 import os
+import json
 import random
-import matplotlib
+import time
+
 import numpy as np
 import scipy.sparse as sp
+from scipy.sparse import save_npz
+from scipy.sparse.linalg import gmres
+
 from PIL import Image
-from matplotlib import pyplot as plt
-from block_jacobi import find_best_block_size
 import argparse
 
-FRACTION_CLASSES = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]
-#print(f"Fraction classes: {FRACTION_CLASSES}")
+# Local imports
+from block_jacobi import find_best_block_size, FRACTION_CLASSES
+
+
 random.seed(42)
 np.random.seed(42)
 
@@ -20,9 +25,95 @@ def parse_cli():
     parser.add_argument("--samples", "-s", type=int, default=3000, help="The number of samples")
     return parser.parse_args()
 
+
+def generate_jittered_matrix(size, target_block_fraction, noise_level):
+    """
+    Generates a matrix where the underlying block structure is 'jittered'.
+    """
+    rng = np.random.default_rng()
+
+    # Jitter the block size by +/- 20% of the target
+    base_block_size = int(size * target_block_fraction)
+    jitter = int(base_block_size * 0.2)
+
+    blocks = []
+    current_dim = 0
+    while current_dim < size:
+        this_block_size = base_block_size + rng.integers(-jitter, jitter + 1)
+        this_block_size = max(2, this_block_size)
+
+        if current_dim + this_block_size > size:
+            this_block_size = size - current_dim
+
+        b = sp.random(
+            this_block_size, this_block_size, density=0.8, format="coo",
+            data_rvs=lambda k: rng.uniform(low=-1.0, high=0.0, size=k)
+        )
+        blocks.append(b)
+        current_dim += this_block_size
+
+    A = sp.block_diag(blocks, format='coo')
+
+    if noise_level > 0:
+        noise_mask = sp.random(
+            size, size, density=noise_level, format="coo",
+            data_rvs=lambda k: rng.uniform(low=-0.1, high=0.0, size=k)
+        )
+        A = A + noise_mask
+
+    A = A.tocsr()
+    A.setdiag(100.0)
+    return A
+
+
+def solve_and_profile(A, b, candidates):
+    """
+    Runs GMRES for all candidate block sizes and returns FULL stats.
+    """
+    results = {}
+
+    for frac in candidates:
+        block_size = int(A.shape[0] * frac)
+        if block_size < 1: continue
+
+        from block_jacobi import block_jacobi_preconditioner
+
+        # Measure Setup Time
+        t_setup_start = time.perf_counter()
+        try:
+            M = block_jacobi_preconditioner(A, block_size)
+        except:
+            results[frac] = {"status": "failed_setup"}
+            continue
+        t_setup_end = time.perf_counter()
+
+        # Measure Solve Time
+        iters = [0]
+
+        def cb(rk):
+            iters[0] += 1
+
+        t_solve_start = time.perf_counter()
+        # Fast fail maxiter to speed up generation
+        _, exitCode = gmres(A, b, rtol=1e-2, M=M, maxiter=1000, callback=cb)
+        t_solve_end = time.perf_counter()
+
+        results[frac] = {
+            "status": "converged" if exitCode == 0 else "diverged",
+            "block_size": block_size,
+            "setup_time": t_setup_end - t_setup_start,
+            "solve_time": t_solve_end - t_solve_start,
+            "iterations": iters[0],
+            "total_time": (t_setup_end - t_setup_start) + (t_solve_end - t_solve_start)
+        }
+
+    return results
+
 def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
     rng = np.random.default_rng(random_state)
     blocks = []
+
+    # Generate dense blocks
     for block in block_sizes:
         blocks.append(
             sp.random(
@@ -33,10 +124,13 @@ def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
                 data_rvs=lambda k: rng.uniform(low=-0.10, high=0.0, size=k),
             )
         )
+
+    # Create block diagonal structure
     A = sp.block_diag(blocks, format='coo')
     n = A.shape[0]
 
-    if noise > 0.0 and A.nnz:
+    # Add noise
+    if noise > 0.0:
         noise_mask = sp.random(
             n,
             n,
@@ -45,20 +139,22 @@ def generate_sparse(block_sizes, noise=0.1, de_noise=0.1, random_state=42):
             data_rvs=lambda k: rng.uniform(low=-0.10, high=0.0, size=k),
         )
         A = A + noise_mask
-        A.sum_duplicates()
-    if de_noise > 0.0 and A.nnz:
+
+    # Apply de-noise (drop random elements)
+    if de_noise > 0.0:
         A = A.tocoo()
-        # keep mask is boolean array, drops entires based on de_noise parameter
         keep_mask = rng.random(A.nnz) >= de_noise
         A = sp.coo_matrix(
-            (A.data[keep_mask],
-             (A.row[keep_mask], A.col[keep_mask])),
-            shape=A.shape)
-    A.setdiag(100)
-    return A.tocsr()
+            (A.data[keep_mask], (A.row[keep_mask], A.col[keep_mask])),
+            shape=A.shape
+        )
+
+    # Convert to CSR before setting diagonal to ensure efficiency and correctness
+    A = A.tocsr()
+    A.setdiag(100.0)
+    return A
 
 def generate_acceptable_blocks(matrix_size):
-
     block_list = []
 
     # all divisors of matrix size
@@ -68,7 +164,6 @@ def generate_acceptable_blocks(matrix_size):
     for divisor in divisors:
             block_list.append(int(divisor*matrix_size))
 
-    
     return block_list
 
 '''
@@ -97,17 +192,21 @@ Parameters:
 '''
 def store_pngs(data, labels, width, height, base_dir='png_dataset128'):
     os.makedirs(base_dir, exist_ok=True)
+
+    # Save the list of classes for reference
     matrix_size = data[0].shape[0]
     classes = [int(i * matrix_size) for i in FRACTION_CLASSES]
-    #size_folder = os.path.join(base_dir, f'size_{matrix_size}')
-    #os.makedirs(size_folder, exist_ok=True)
+
+
     class_path = os.path.join(base_dir, 'classes.txt')
     with open(class_path, "w") as f:
         for elem in classes:
             f.write(f"{elem}\n")
+
     for label in labels:
         label_folder = os.path.join(base_dir, f'label_{label}')
         os.makedirs(label_folder, exist_ok=True)
+
     for i in range(len(data)):
         matrix = data[i]
         img = matrix_to_png(matrix)
@@ -123,6 +222,68 @@ def store_pngs(data, labels, width, height, base_dir='png_dataset128'):
         #fig, ax = plt.subplots()
         #ax.set_axis_off()
         #plt.savefig(file_path, bbox_inches='tight', pad_inches=0)
+
+
+def save_data(matrix, results, matrix_id, base_dir):
+    """
+    Saves PNG, Raw Matrix (.npz), and JSON Sidecar.
+    Structure:
+      base_dir/
+        images/     -> Visuals for CNN
+        matrices/   -> Raw .npz for dense/diagonal experiments
+        metadata/   -> Labels and stats
+    """
+    # 1. Determine "Optimal" Label
+    valid_results = {k: v for k, v in results.items() if v['status'] == 'converged'}
+
+    if not valid_results:
+        print(f"Matrix {matrix_id} did not converge. Skipping.")
+        return
+
+    best_frac_time = min(valid_results, key=lambda k: valid_results[k]['total_time'])
+    best_frac_iter = min(valid_results, key=lambda k: valid_results[k]['iterations'])
+
+    # 2. Setup directories
+    image_dir = os.path.join(base_dir, "images")
+    matrix_dir = os.path.join(base_dir, "matrices") # New Folder
+    meta_dir = os.path.join(base_dir, "metadata")
+
+    os.makedirs(image_dir, exist_ok=True)
+    os.makedirs(matrix_dir, exist_ok=True)
+    os.makedirs(meta_dir, exist_ok=True)
+
+    # 3. Save Image (Visual Representation)
+    dense_bool = matrix.toarray() != 0
+    pixels = (~dense_bool).astype(np.uint8) * 255
+    img = Image.fromarray(pixels, mode="L")
+    img_name = f"matrix_{matrix_id}.png"
+    img.save(os.path.join(image_dir, img_name))
+
+    # 4. Save Raw Matrix (Data Representation)
+    matrix_filename = f"matrix_{matrix_id}.npz"
+    save_npz(os.path.join(matrix_dir, matrix_filename), matrix)
+
+    # 5. Save Metadata
+    meta_data = {
+        "matrix_id": matrix_id,
+        "files": {
+            "image": img_name,
+            "matrix": matrix_filename
+        },
+        "labels": {
+            "optimal_fraction_total_time": best_frac_time,
+            "optimal_fraction_iterations": best_frac_iter
+        },
+        "matrix_properties": {
+            "size": matrix.shape[0],
+            "nnz": matrix.nnz,
+            "density": matrix.nnz / (matrix.shape[0]**2)
+        },
+        "performance_data": results
+    }
+
+    with open(os.path.join(meta_dir, f"matrix_{matrix_id}.json"), 'w') as f:
+        json.dump(meta_data, f, indent=2)
 
 
 '''
@@ -144,8 +305,6 @@ This will call a function that will return a list of acceptable block sizes base
 5. Since we are resizing the PNG, I will change the store_pngs function by adding a parameter for width and height
     - If you do not wish to resize the image, simply pass the matrix size for width and height
 '''
-
-
 def generate_matrices(size, folder_name, sample_amount=3000):
     # list of blocks for all matrices of specified size
     best_size_array = []
@@ -162,7 +321,7 @@ def generate_matrices(size, folder_name, sample_amount=3000):
     # we want to generate sample_amount of matrices for each LABEL
     for block in acceptable_blocks:
         #print(f"CURRENT BLOCK IS: {block}. THERE SHOULD BE ONE SAMPLE PER BLOCK")
-        for j in range(block_samples):
+        for _ in range(block_samples):
             #print(f"Sample#: {j}")
             # list of blocks for our current matrix
             blocks = []
@@ -195,11 +354,31 @@ def generate_matrices(size, folder_name, sample_amount=3000):
         
             best_size = find_best_block_size(n, A, b)
             best_size_array.append(best_size)
+
     store_pngs(dataset, best_size_array, 500, 500, base_dir=folder_name) # storing PNGS as 100x100 for now
 
     return
 
+
+def generate_pipeline(size, folder_name, samples):
+    candidates = FRACTION_CLASSES
+
+    for i in range(samples):
+        if i % 10 == 0: print(f"Generating sample {i}/{samples}...")
+
+        # Jittered generation
+        target_structure = random.uniform(0.05, 0.40)
+        noise = random.uniform(0.001, 0.05)
+
+        A = generate_jittered_matrix(size, target_structure, noise)
+        b = np.ones(A.shape[0])
+
+        results = solve_and_profile(A, b, candidates)
+        save_data(A, results, i, folder_name)
+
+
 if __name__ == '__main__':
     args = parse_cli()
     #print(f"Arguments: {args.samples} samples of size {args.size}, folder name: {args.name}")
-    generate_matrices(args.size, args.name, sample_amount=args.samples)
+    #generate_matrices(args.size, args.name, sample_amount=args.samples)
+    generate_pipeline(args.size, args.name, args.samples)
