@@ -47,7 +47,7 @@ def generate_jittered_matrix(size, target_block_fraction, noise_level):
 
         b = sp.random(
             this_block_size, this_block_size, density=0.8, format="coo",
-            data_rvs=lambda k: rng.uniform(low=-1.0, high=0.0, size=k)
+            data_rvs=lambda k: rng.uniform(low=-10.0, high=10.0, size=k)
         )
         blocks.append(b)
         current_dim += this_block_size
@@ -57,12 +57,42 @@ def generate_jittered_matrix(size, target_block_fraction, noise_level):
     if noise_level > 0:
         noise_mask = sp.random(
             size, size, density=noise_level, format="coo",
-            data_rvs=lambda k: rng.uniform(low=-0.1, high=0.0, size=k)
+            data_rvs=lambda k: rng.uniform(low=-0.5, high=0.5, size=k)
         )
         A = A + noise_mask
 
     A = A.tocsr()
-    A.setdiag(100.0)
+    #A.setdiag(100.0)
+
+    # # NEW: Dynamic Diagonal Dominance
+    # # Calculate the sum of absolute off-diagonal values for each row
+    # off_diag_sum = np.array(np.abs(A).sum(axis=1)).flatten() - np.abs(A.diagonal())
+    #
+    # # Set diagonal to be just barely dominant or slightly weak (1.01x to 1.5x the noise)
+    # # This forces the solver to rely on the block structure
+    # diag_values = off_diag_sum * rng.uniform(1.01, 2.5, size=A.shape[0])
+    #
+    # # Add a safety floor to prevent absolute singularities
+    # diag_values += 0.5
+
+    # FIX: Weak Diagonal
+    # Instead of summing the row (which makes dense blocks huge),
+    # we set the diagonal relative to the single-element magnitude (~10.0).
+    # This ensures that "cutting" a dense block creates a significant error relative to the diagonal.
+
+    # 1. Base diagonal on element size (15 to 25) vs element size (10)
+    diag_values = rng.uniform(15.0, 25.0, size=A.shape[0])
+
+    # 2. Add a tiny fraction of row sum to help prevent pure singularity,
+    # but keep it small (0.1) so it doesn't dominate.
+    off_diag_sum = np.array(np.abs(A).sum(axis=1)).flatten() - np.abs(A.diagonal())
+    diag_values += 0.1 * off_diag_sum
+
+    # 3. Randomize signs to create an indefinite matrix (Hard Mode for GMRES)
+    diag_signs = rng.choice([-1, 1], size=A.shape[0])
+    A.setdiag(diag_values * diag_signs)
+
+    A.setdiag(diag_values)
     return A
 
 
@@ -72,7 +102,17 @@ def solve_and_profile(A, b, candidates):
     """
     results = {}
 
-    for frac in candidates:
+    # Constants for Theoretical Model
+    # We tune these so setup_cost and solve_cost are roughly balanced
+    # for a "medium" block size (e.g., 0.20)
+    SETUP_COEFF = 1e-7
+    SOLVE_COEFF = 1e-5
+
+    # FIX: Shuffle candidates to prevent "0.05 wins ties" bias
+    candidates_shuffled = candidates.copy()
+    random.shuffle(candidates_shuffled)
+
+    for frac in candidates_shuffled:
         block_size = int(A.shape[0] * frac)
         if block_size < 1: continue
 
@@ -82,29 +122,43 @@ def solve_and_profile(A, b, candidates):
         t_setup_start = time.perf_counter()
         try:
             M = block_jacobi_preconditioner(A, block_size)
+            M_nnz = M.nnz
         except:
             results[frac] = {"status": "failed_setup"}
             continue
         t_setup_end = time.perf_counter()
 
-        # Measure Solve Time
-        iters = [0]
 
+        residual_history = []
         def cb(rk):
-            iters[0] += 1
+            residual_history.append(rk)
 
         t_solve_start = time.perf_counter()
         # Fast fail maxiter to speed up generation
         _, exitCode = gmres(A, b, rtol=1e-2, M=M, maxiter=1000, callback=cb)
         t_solve_end = time.perf_counter()
 
+        # 3. Calculate Theoretical "Parallel" Cost
+        iters = len(residual_history)
+        num_blocks = A.shape[0] // block_size
+        # We assume enough GPU cores to parallelize the blocks,
+        # so the bottleneck is the inversion of a SINGLE block of size m
+        # Complexity: O(m^3)
+        setup_cost_theoretical = (block_size ** 3) * SETUP_COEFF
+
+        # Solve cost: Iterations * Cost of SpMV (proportional to NNZ)
+        solve_cost_theoretical = iters * ((A.nnz + M_nnz) * SOLVE_COEFF)
+
         results[frac] = {
             "status": "converged" if exitCode == 0 else "diverged",
             "block_size": block_size,
             "setup_time": t_setup_end - t_setup_start,
             "solve_time": t_solve_end - t_solve_start,
-            "iterations": iters[0],
-            "total_time": (t_setup_end - t_setup_start) + (t_solve_end - t_solve_start)
+            "num_blocks": num_blocks,
+            "preconditioner_nnz": M_nnz,
+            "iterations": iters,
+            "total_wall": (t_setup_end - t_setup_start) + (t_solve_end - t_solve_start),
+            "total_time": setup_cost_theoretical + solve_cost_theoretical
         }
 
     return results
@@ -224,7 +278,7 @@ def store_pngs(data, labels, width, height, base_dir='png_dataset128'):
         #plt.savefig(file_path, bbox_inches='tight', pad_inches=0)
 
 
-def save_data(matrix, results, matrix_id, base_dir):
+def save_data(matrix, results, matrix_id, base_dir, target_structure):
     """
     Saves PNG, Raw Matrix (.npz), and JSON Sidecar.
     Structure:
@@ -269,6 +323,9 @@ def save_data(matrix, results, matrix_id, base_dir):
         "files": {
             "image": img_name,
             "matrix": matrix_filename
+        },
+        "ground_truth": {
+            "generated_structure_fraction": target_structure
         },
         "labels": {
             "optimal_fraction_total_time": best_frac_time,
@@ -368,13 +425,15 @@ def generate_pipeline(size, folder_name, samples):
 
         # Jittered generation
         target_structure = random.uniform(0.05, 0.40)
+        #target_structure = random.triangular(0.10, 0.40, 0.40)
+
         noise = random.uniform(0.001, 0.05)
 
         A = generate_jittered_matrix(size, target_structure, noise)
         b = np.ones(A.shape[0])
 
         results = solve_and_profile(A, b, candidates)
-        save_data(A, results, i, folder_name)
+        save_data(A, results, i, folder_name, target_structure)
 
 
 if __name__ == '__main__':
