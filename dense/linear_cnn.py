@@ -161,7 +161,7 @@ if __name__ == '__main__':
     X_train, X_test, y_train, y_test = train_test_split(data, labels, test_size=0.2, random_state=42)
 
     model = build_model(data.shape[1:],num_outputs=1)
-    train_network(model, X_train, y_train, arguments.model, epochs=20, arguments.save_flag)
+    #train_network(model, X_train, y_train, arguments.model, epochs=20, arguments.save_flag)
     evaluate_model(model, X_test, y_test)
 
     model_file = arguments.model

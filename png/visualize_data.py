@@ -11,7 +11,7 @@ def parse_cli():
     parser = argparse.ArgumentParser(description="Dataset Visualizer")
     parser.add_argument("--data_dir", type=str, required=True, help="Path to dataset folder")
     # Add a flag to allow experimenting with coefficients without regeneration!
-    parser.add_argument("--setup_coeff", type=float, default=1e-8, help="Override SETUP_COEFF for visualization")
+    parser.add_argument("--setup_coeff", type=float, default=5e-7, help="Override SETUP_COEFF for visualization")
     return parser.parse_args()
 
 

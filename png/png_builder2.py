@@ -23,6 +23,7 @@ def parse_cli():
     parser.add_argument("--size", type=int, default=500, help="Size of matrices to generate")
     parser.add_argument("--name", "-n", type=str, help="Folder name to save to")
     parser.add_argument("--samples", "-s", type=int, default=3000, help="The number of samples")
+    parser.add_argument("--save_raw", action="store_true", help="Flag to save full .npz matrix files")
     return parser.parse_args()
 
 
@@ -35,7 +36,6 @@ def generate_jittered_matrix(size, target_block_fraction, noise_level):
     # Jitter the block size by +/- 20% of the target
     base_block_size = int(size * target_block_fraction)
     jitter = int(base_block_size * 0.2)
-
     blocks = []
     current_dim = 0
     while current_dim < size:
@@ -92,9 +92,50 @@ def generate_jittered_matrix(size, target_block_fraction, noise_level):
     diag_signs = rng.choice([-1, 1], size=A.shape[0])
     A.setdiag(diag_values * diag_signs)
 
-    A.setdiag(diag_values)
+    # 3b. All positive diagonal (Easy mode for GMRES)
+    #A.setdiag(diag_values)
     return A
 
+
+def get_interpolated_label(results, setup_coeff, solve_coeff):
+    """
+    Fits a parabola to the cost data to find the continuous optimal fraction.
+    """
+    x = []
+    y = []
+
+    for frac_str, stats in results.items():
+        if stats['status'] != 'converged': continue
+
+        # Re-calculate total cost using the coefficients passed in
+        # This ensures the label matches the 'Economics' you decided on
+        b_size = stats['block_size']
+        iters = stats['iterations']
+        # Note: Using simplified proxy for Bandwidth (A.nnz + M.nnz)
+        # You can also just use stats['total_time'] if you trust the one calculated in solve_and_profile
+
+        # Let's trust the total_time calculated in solve_and_profile for consistency
+        cost = stats['total_time']
+
+        x.append(float(frac_str))
+        y.append(cost)
+
+    if len(x) < 3:
+        return x[np.argmin(y)]  # Fallback to discrete if not enough points
+
+    try:
+        # Fit y = ax^2 + bx + c
+        z = np.polyfit(x, y, 2)
+        a, b, c = z
+
+        # Find minimum x = -b / (2a)
+        if a > 0:  # Convex (valley)
+            min_x = -b / (2 * a)
+            return max(0.05, min(0.40, min_x))  # Clamp to valid range
+        else:
+            return x[np.argmin(y)]  # Concave (hill), pick lowest edge
+    except:
+        return x[np.argmin(y)]
 
 def solve_and_profile(A, b, candidates):
     """
@@ -105,7 +146,7 @@ def solve_and_profile(A, b, candidates):
     # Constants for Theoretical Model
     # We tune these so setup_cost and solve_cost are roughly balanced
     # for a "medium" block size (e.g., 0.20)
-    SETUP_COEFF = 1e-7
+    SETUP_COEFF = 5e-7
     SOLVE_COEFF = 1e-5
 
     # FIX: Shuffle candidates to prevent "0.05 wins ties" bias
@@ -278,7 +319,7 @@ def store_pngs(data, labels, width, height, base_dir='png_dataset128'):
         #plt.savefig(file_path, bbox_inches='tight', pad_inches=0)
 
 
-def save_data(matrix, results, matrix_id, base_dir, target_structure):
+def save_data(matrix, results, matrix_id, base_dir, target_structure, save_raw=False):
     """
     Saves PNG, Raw Matrix (.npz), and JSON Sidecar.
     Structure:
@@ -287,7 +328,7 @@ def save_data(matrix, results, matrix_id, base_dir, target_structure):
         matrices/   -> Raw .npz for dense/diagonal experiments
         metadata/   -> Labels and stats
     """
-    # 1. Determine "Optimal" Label
+    # 1. Determine discrete "Optimal" Label (classification)
     valid_results = {k: v for k, v in results.items() if v['status'] == 'converged'}
 
     if not valid_results:
@@ -297,14 +338,25 @@ def save_data(matrix, results, matrix_id, base_dir, target_structure):
     best_frac_time = min(valid_results, key=lambda k: valid_results[k]['total_time'])
     best_frac_iter = min(valid_results, key=lambda k: valid_results[k]['iterations'])
 
-    # 2. Setup directories
-    image_dir = os.path.join(base_dir, "images")
-    matrix_dir = os.path.join(base_dir, "matrices") # New Folder
-    meta_dir = os.path.join(base_dir, "metadata")
+    # 1.5. Continuous Winners (New Regression Labels)
+    # Note: These coefficients MUST match solve_and_profile if you want consistency!
+    # If you change solve_and_profile, update these or pass them in.
+    SETUP_COEFF = 5e-7
+    SOLVE_COEFF = 1e-5
 
+    interpolated_opt = get_interpolated_label(valid_results, SETUP_COEFF, SOLVE_COEFF)
+
+    # 2. Setup directories
+    # Images
+    image_dir = os.path.join(base_dir, "images")
     os.makedirs(image_dir, exist_ok=True)
-    os.makedirs(matrix_dir, exist_ok=True)
+    # JSON Metadata
+    meta_dir = os.path.join(base_dir, "metadata")
     os.makedirs(meta_dir, exist_ok=True)
+    # Full, dense matrices
+    if save_raw:
+        matrix_dir = os.path.join(base_dir, "matrices")  # New Folder
+        os.makedirs(matrix_dir, exist_ok=True)
 
     # 3. Save Image (Visual Representation)
     dense_bool = matrix.toarray() != 0
@@ -313,9 +365,11 @@ def save_data(matrix, results, matrix_id, base_dir, target_structure):
     img_name = f"matrix_{matrix_id}.png"
     img.save(os.path.join(image_dir, img_name))
 
-    # 4. Save Raw Matrix (Data Representation)
-    matrix_filename = f"matrix_{matrix_id}.npz"
-    save_npz(os.path.join(matrix_dir, matrix_filename), matrix)
+    # 4. Save Raw Matrix (Data Representation, conditional)
+    matrix_filename = None
+    if save_raw:
+        matrix_filename = f"matrix_{matrix_id}.npz"
+        save_npz(os.path.join(matrix_dir, matrix_filename), matrix)
 
     # 5. Save Metadata
     meta_data = {
@@ -328,8 +382,13 @@ def save_data(matrix, results, matrix_id, base_dir, target_structure):
             "generated_structure_fraction": target_structure
         },
         "labels": {
-            "optimal_fraction_total_time": best_frac_time,
-            "optimal_fraction_iterations": best_frac_iter
+            # CLASSIFICATION LABELS (Buckets)
+            "class_optimal_time": best_frac_time,
+            "class_optimal_iterations": best_frac_iter,
+
+            # REGRESSION LABELS (Floats)
+            "regression_ground_truth": target_structure,       # The Physics Truth
+            "regression_interpolated_optimal": interpolated_opt # The Solver Truth
         },
         "matrix_properties": {
             "size": matrix.shape[0],
@@ -417,7 +476,7 @@ def generate_matrices(size, folder_name, sample_amount=3000):
     return
 
 
-def generate_pipeline(size, folder_name, samples):
+def generate_pipeline(size, folder_name, samples, save_raw=False):
     candidates = FRACTION_CLASSES
 
     for i in range(samples):
@@ -427,7 +486,7 @@ def generate_pipeline(size, folder_name, samples):
         target_structure = random.uniform(0.05, 0.40)
         #target_structure = random.triangular(0.10, 0.40, 0.40)
 
-        noise = random.uniform(0.001, 0.05)
+        noise = random.uniform(0.001, 0.02)
 
         A = generate_jittered_matrix(size, target_structure, noise)
         b = np.ones(A.shape[0])
@@ -438,6 +497,7 @@ def generate_pipeline(size, folder_name, samples):
 
 if __name__ == '__main__':
     args = parse_cli()
+
     #print(f"Arguments: {args.samples} samples of size {args.size}, folder name: {args.name}")
     #generate_matrices(args.size, args.name, sample_amount=args.samples)
-    generate_pipeline(args.size, args.name, args.samples)
+    generate_pipeline(args.size, args.name, args.samples, save_raw=args.save_raw)
