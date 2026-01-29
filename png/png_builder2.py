@@ -176,7 +176,7 @@ def solve_and_profile(A, b, candidates):
 
         t_solve_start = time.perf_counter()
         # Fast fail maxiter to speed up generation
-        _, exitCode = gmres(A, b, rtol=1e-2, M=M, maxiter=1000, callback=cb)
+        _, exitCode = gmres(A, b, rtol=1e-6, M=M, maxiter=1000, callback=cb)
         t_solve_end = time.perf_counter()
 
         # 3. Calculate Theoretical "Parallel" Cost
@@ -492,7 +492,7 @@ def generate_pipeline(size, folder_name, samples, save_raw=False):
         b = np.ones(A.shape[0])
 
         results = solve_and_profile(A, b, candidates)
-        save_data(A, results, i, folder_name, target_structure)
+        save_data(A, results, i, folder_name, target_structure, save_raw=save_raw)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,11 @@
+# Core dependencies
+torch>=2.0.0
+numpy>=1.20.0
+scipy>=1.7.0
+pillow>=8.0.0
+
+# For visualization and experiments
+matplotlib>=3.4.0
+
+# Optional: for loading original Keras models
+# h5py>=3.0.0

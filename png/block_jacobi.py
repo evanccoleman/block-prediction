@@ -88,7 +88,7 @@ def find_best_block_size(n, A, b, eval_key='iterations'):
         start_after_M = time.perf_counter()
 
         # Run GMRES with Preconditioner
-        x_pre, exitCode = gmres(A, b, rtol=1e-2, callback=counter_pre, maxiter=int(1e6), M=M)
+        x_pre, exitCode = gmres(A, b, rtol=1e-6, callback=counter_pre, maxiter=int(1e6), M=M)
         entire_end = time.perf_counter()
         end_after_M = time.perf_counter()
 
