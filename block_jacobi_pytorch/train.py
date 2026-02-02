@@ -27,7 +27,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 
-from models import get_model, DiagonalCNN, DenseNet, ImageCNN, ImageResNet
+from models import (
+    get_model, DiagonalCNN, DenseNet, ImageCNN, ImageResNet, 
+    ConvDenseNet, LightDenseNet, ScalableDiagonalCNN, FeatureBasedPredictor
+)
 from data import (
     BlockJacobiDataset, 
     SyntheticBlockJacobiDataset,
@@ -45,8 +48,10 @@ def parse_args():
     
     # Model configuration
     parser.add_argument('--model', type=str, default='diagonal_cnn',
-                        choices=['diagonal_cnn', 'dense', 'image_cnn', 'image_resnet'],
-                        help='Model architecture')
+                        choices=['diagonal_cnn', 'scalable_diagonal', 'dense', 'conv_dense', 
+                                 'light_dense', 'image_cnn', 'image_resnet'],
+                        help='Model architecture. scalable_diagonal is O(1) in parameters. '
+                             'conv_dense and light_dense are memory-efficient alternatives to dense.')
     parser.add_argument('--task', type=str, default='classification',
                         choices=['classification', 'regression'],
                         help='Task type')
@@ -130,8 +135,14 @@ def create_model(args, num_classes: int = 8) -> nn.Module:
     
     if args.model == 'diagonal_cnn':
         return DiagonalCNN(band_width=args.band_width, **common_kwargs)
+    elif args.model == 'scalable_diagonal':
+        return ScalableDiagonalCNN(band_width=args.band_width, **common_kwargs)
     elif args.model == 'dense':
         return DenseNet(**common_kwargs)
+    elif args.model == 'conv_dense':
+        return ConvDenseNet(**common_kwargs)
+    elif args.model == 'light_dense':
+        return LightDenseNet(**common_kwargs)
     elif args.model == 'image_cnn':
         return ImageCNN(in_channels=1, **common_kwargs)
     elif args.model == 'image_resnet':
@@ -142,16 +153,22 @@ def create_model(args, num_classes: int = 8) -> nn.Module:
 
 def get_input_type(model_name: str) -> str:
     """Map model name to input type."""
-    if model_name == 'diagonal_cnn':
+    if model_name in ['diagonal_cnn', 'scalable_diagonal']:
         return 'diagonal'
     elif model_name in ['image_cnn', 'image_resnet']:
         return 'image'
+    elif model_name in ['conv_dense', 'light_dense']:
+        return 'matrix'  # These use 2D matrix input but handle it internally
     else:
         return 'matrix'
 
 
-def create_dataloaders_from_args(args) -> Tuple[DataLoader, DataLoader]:
-    """Create dataloaders based on arguments."""
+def create_dataloaders_from_args(args) -> Tuple[DataLoader, DataLoader, int]:
+    """Create dataloaders based on arguments.
+    
+    Returns:
+        train_loader, val_loader, n_size (detected matrix size)
+    """
     input_type = get_input_type(args.model)
     
     if args.synthetic or args.data_dir is None:
@@ -160,9 +177,11 @@ def create_dataloaders_from_args(args) -> Tuple[DataLoader, DataLoader]:
         print("  Note: Synthetic labels are approximations. For accurate labels,")
         print("        use png_builder2.py to generate data with solver profiling.")
         
+        n_size = args.n_size
+        
         full_dataset = SyntheticBlockJacobiDataset(
             num_samples=args.num_samples,
-            n_size=args.n_size,
+            n_size=n_size,
             input_type=input_type,
             task=args.task,
             band_width=args.band_width,
@@ -194,17 +213,46 @@ def create_dataloaders_from_args(args) -> Tuple[DataLoader, DataLoader]:
             pin_memory=True
         )
         
-        return train_loader, val_loader
+        return train_loader, val_loader, n_size
     else:
-        # Use real data
-        return create_dataloaders(
+        # Use real data - create dataset first to detect n_size
+        full_dataset = BlockJacobiDataset(
             data_dir=args.data_dir,
             input_type=input_type,
             task=args.task,
-            batch_size=args.batch_size,
-            val_split=args.val_split,
             band_width=args.band_width,
         )
+        
+        # Get detected matrix size
+        n_size = full_dataset.n_size
+        print(f"Detected matrix size: {n_size}x{n_size}")
+        
+        # Split
+        n_val = int(len(full_dataset) * args.val_split)
+        n_train = len(full_dataset) - n_val
+        
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            full_dataset, [n_train, n_val],
+            generator=torch.Generator().manual_seed(42)
+        )
+        
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=True
+        )
+        
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=True
+        )
+        
+        return train_loader, val_loader, n_size
 
 
 def train_epoch(
@@ -339,8 +387,12 @@ def train(args):
     with open(run_dir / 'config.json', 'w') as f:
         json.dump(config, f, indent=2)
     
-    # Create dataloaders
-    train_loader, val_loader = create_dataloaders_from_args(args)
+    # Create dataloaders and detect matrix size
+    train_loader, val_loader, detected_n_size = create_dataloaders_from_args(args)
+    
+    # Use detected n_size instead of args.n_size for real data
+    args.n_size = detected_n_size
+    
     print(f"Train samples: {len(train_loader.dataset)}, Val samples: {len(val_loader.dataset)}")
     
     # Determine number of classes for classification

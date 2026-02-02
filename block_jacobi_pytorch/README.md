@@ -6,13 +6,24 @@ This is a PyTorch reimplementation of the CNN-based block pattern detection appr
 
 ## Overview
 
-This package implements three model architectures for predicting optimal block-Jacobi preconditioner parameters:
+This package implements multiple model architectures for predicting optimal block-Jacobi preconditioner parameters:
 
-1. **DiagonalCNN** - The original approach from the paper: extracts the diagonal band from the matrix and uses a specialized CNN architecture with residual denoising and corner detection convolutions.
+### Global Prediction Models (predict one block size for entire matrix)
 
-2. **DenseNet** - A dense neural network that operates on the full raw matrix data, treating it as a high-dimensional feature vector.
+| Model | Description | Params | Scalability |
+|-------|-------------|--------|-------------|
+| **DiagonalCNN** | Original paper architecture - extracts diagonal band | O(n) | n < 10,000 |
+| **ScalableDiagonalCNN** | Adaptive pooling version | O(1) | Any n |
+| **ConvDenseNet** | Conv compression + dense layers | O(1) | Any n |
+| **ImageResNet** | ResNet on matrix spy image | O(1) | Any n |
 
-3. **ImageCNN/ImageResNet** - Standard image classification CNNs (VGG-style and ResNet-style) that operate on the PNG visualization of the matrix sparsity pattern.
+### Per-Entry Prediction (original paper formulation)
+
+| Model | Description | Params | Scalability |
+|-------|-------------|--------|-------------|
+| **BlockStartCNN** | Predicts block start at each diagonal position | O(1) | Any n (O(n) inference) |
+
+The **BlockStartCNN** is closest to the original paper's formulation and supports **variable block sizes**.
 
 ## Installation
 
@@ -20,80 +31,74 @@ This package implements three model architectures for predicting optimal block-J
 # Create a virtual environment (recommended)
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# or: venv\Scripts\activate  # Windows
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### Requirements
+## Quick Start
 
-- Python 3.8+
-- PyTorch 2.0+
-- NumPy
-- SciPy
-- Pillow
-- matplotlib (for experiments/visualization)
-
-## Usage
-
-### Training with Synthetic Data
-
-The package can generate synthetic matrices with block structure similar to the paper:
-
+### Train a single model
 ```bash
-# Train DiagonalCNN (paper's approach)
-python train.py --model diagonal_cnn --task classification --epochs 50 --synthetic
+# Classification (8-class: which block fraction is optimal?)
+python train.py --model diagonal_cnn --task classification --data-dir ./your_data/
 
-# Train DenseNet on raw matrix data
-python train.py --model dense --task classification --epochs 50 --synthetic
-
-# Train ImageResNet on matrix images
-python train.py --model image_resnet --task classification --epochs 50 --synthetic
+# Regression (predict continuous optimal threshold)
+python train.py --model scalable_diagonal --task regression --data-dir ./your_data/
 ```
 
-### Training with Your Data
-
-Organize your data as:
-```
-data_dir/
-  matrix_0.npz    # Sparse matrix (scipy.sparse CSR format)
-  matrix_0.json   # Metadata with labels
-  matrix_0.png    # Matrix sparsity pattern image (optional)
-  matrix_1.npz
-  matrix_1.json
-  ...
-```
-
-Then run:
+### Run full comparison of all models
 ```bash
-python train.py --model diagonal_cnn --data-dir ./data_dir --epochs 50
+./scripts/run_full_comparison.sh ./your_data/ 30  # 30 epochs
 ```
 
-### Running Predictions
-
+### Train BlockStartCNN (per-entry prediction)
 ```bash
-python predict.py --model-path output/run_name/best_model.pt --input matrix_0.npz
+python block_start_cnn.py --data-dir ./your_data/ --epochs 50
 ```
 
-### Comparing All Models
+## Model Selection Guide
 
-Run a full comparison experiment:
-```bash
-python experiments.py
-```
-
-This will train all three architectures on synthetic data and produce comparison plots.
+| Your Situation | Recommended Model |
+|----------------|-------------------|
+| Small matrices (n < 1,000), best accuracy | `diagonal_cnn` |
+| Medium matrices (1,000 < n < 10,000) | `scalable_diagonal` |
+| Large matrices (n > 10,000) | `scalable_diagonal` with tiling |
+| Variable block sizes needed | `block_start_cnn` |
+| Image-based workflow | `image_resnet` |
+| Limited GPU memory | `scalable_diagonal` or `conv_dense` |
 
 ## Data Format
 
+### Directory Structure
+```
+data_dir/
+├── matrices/           # Optional subfolder
+│   ├── matrix_0.npz   
+│   └── ...
+├── metadata/           # Optional subfolder
+│   ├── matrix_0.json
+│   └── ...
+├── images/             # Optional subfolder  
+│   ├── matrix_0.png
+│   └── ...
+```
+
+Or flat structure:
+```
+data_dir/
+├── matrix_0.npz
+├── matrix_0.json
+├── matrix_0.png
+└── ...
+```
+
 ### Matrix Files (.npz)
-Sparse matrices stored in SciPy CSR format with keys:
-- `data`: Non-zero values
-- `indices`: Column indices
-- `indptr`: Row pointer
-- `shape`: Matrix dimensions
-- `format`: 'csr'
+Sparse matrices in SciPy CSR format:
+```python
+import scipy.sparse as sp
+matrix = sp.load_npz('matrix_0.npz')
+```
 
 ### Metadata Files (.json)
 ```json
@@ -101,88 +106,49 @@ Sparse matrices stored in SciPy CSR format with keys:
   "matrix_id": 0,
   "labels": {
     "class_optimal_time": 0.35,
-    "class_optimal_iterations": 0.35,
-    "regression_ground_truth": 0.274,
-    "regression_interpolated_optimal": 0.247
+    "regression_ground_truth": 0.274
   },
   "matrix_properties": {
     "size": 128,
-    "nnz": 3368,
-    "density": 0.206
-  },
-  "performance_data": {
-    "0.05": {"iterations": 59, "total_wall": 0.024, ...},
-    "0.10": {"iterations": 51, "total_wall": 0.020, ...},
-    ...
+    "nnz": 3368
   }
 }
 ```
 
-## Model Architectures
+## Scalability Analysis
 
-### DiagonalCNN (Paper Approach)
-```
-Input: Diagonal band (21 × 128)
-  → Residual Denoising Block (BatchNorm + SELU + Conv2D)
-  → Corner Detection (padded convolution + tanh)
-  → Dense Classifier (512 → output)
-```
-
-### DenseNet
-```
-Input: Full matrix (128 × 128)
-  → Optional sparse features (nnz, density, diag_dominance)
-  → FC layers: 2048 → 1024 → 512 → 256 → output
-  → SELU activations, BatchNorm, Dropout
-```
-
-### ImageCNN / ImageResNet
-```
-Input: Matrix image (128 × 128)
-  → VGG-style or ResNet-style conv blocks
-  → Global pooling
-  → Dense classifier
-```
-
-## Task Types
-
-- **Classification**: Predict the optimal threshold from discrete options (0.05, 0.10, ..., 0.40)
-- **Regression**: Predict the continuous optimal threshold value
-- **Block Start Prediction**: Multi-label classification to predict where blocks start (original paper task)
-
-## Key Differences from Original
-
-1. **Framework**: PyTorch instead of TensorFlow/Keras
-2. **Additional Models**: Added DenseNet and ImageCNN/ImageResNet variants
-3. **Flexible Tasks**: Support for both classification and regression
-4. **Modern Optimizers**: Uses NAdam (Nesterov Adam) as in the paper
-
-## File Structure
+The key bottleneck in the original DiagonalCNN is the FC layer after flattening:
 
 ```
-block_jacobi_pytorch/
-├── models.py          # Model architectures
-├── data.py            # Data loading and preprocessing
-├── train.py           # Training script
-├── predict.py         # Inference script
-├── experiments.py     # Model comparison experiments
-├── requirements.txt   # Dependencies
-└── README.md          # This file
+DiagonalCNN FC layer: 128 * n → 512 parameters
+  n = 128:     8 million params (OK)
+  n = 10,000:  655 million params (problematic)
+  n = 1,000,000: 65 billion params (impossible)
 ```
+
+**Solutions implemented:**
+
+1. **ScalableDiagonalCNN**: Uses adaptive pooling before FC layer → O(1) params
+2. **Tiling**: Process 128×128 tiles, aggregate predictions
+3. **BlockStartCNN**: Sliding window, same model for any position
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `scripts/run_full_comparison.sh` | Compare all models (classification + regression) |
+| `scripts/run_classification_vs_regression.sh` | Compare tasks |
+| `scripts/run_improved.sh` | Training with heavy regularization |
+| `analyze_resolution.py` | Analyze downsampling effects |
+| `block_start_cnn.py` | Per-entry prediction training |
 
 ## Citation
-
-If you use this code, please cite the original paper:
 
 ```bibtex
 @inproceedings{gotz2018machine,
   title={Machine Learning-Aided Numerical Linear Algebra: Convolutional Neural Networks for the Efficient Preconditioner Generation},
   author={G{\"o}tz, Markus and Anzt, Hartwig},
-  booktitle={Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
+  booktitle={SC18: International Conference for High Performance Computing, Networking, Storage and Analysis},
   year={2018}
 }
 ```
-
-## License
-
-This is a research reimplementation for educational purposes.

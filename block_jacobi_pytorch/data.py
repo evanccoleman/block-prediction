@@ -159,6 +159,9 @@ class BlockJacobiDataset(Dataset):
         # Detect directory structure and find all samples
         self.samples = self._find_samples()
         
+        # Detect matrix size from first sample
+        self.n_size = self._detect_matrix_size()
+        
     def _find_samples(self) -> List[Dict]:
         """Find all matrix samples in the data directory."""
         samples = []
@@ -233,6 +236,39 @@ class BlockJacobiDataset(Dataset):
                         })
         
         return samples
+    
+    def _detect_matrix_size(self) -> int:
+        """Detect matrix size from the first sample."""
+        if not self.samples:
+            return 128  # Default fallback
+        
+        sample = self.samples[0]
+        
+        # Try to get from metadata first
+        try:
+            metadata = load_matrix_metadata(sample['json'])
+            if 'matrix_properties' in metadata and 'size' in metadata['matrix_properties']:
+                return metadata['matrix_properties']['size']
+        except:
+            pass
+        
+        # Try to get from PNG
+        if sample.get('png') and sample['png'].exists():
+            try:
+                img = Image.open(sample['png'])
+                return img.size[0]  # Assume square
+            except:
+                pass
+        
+        # Try to get from NPZ
+        if sample.get('npz') and sample['npz'].exists():
+            try:
+                matrix = load_sparse_matrix(sample['npz'])
+                return matrix.shape[0]
+            except:
+                pass
+        
+        return 128  # Default fallback
     
     def __len__(self) -> int:
         return len(self.samples)

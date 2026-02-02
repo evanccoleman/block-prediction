@@ -25,7 +25,8 @@ echo "Output: $OUTPUT_DIR"
 echo ""
 
 # Models to test
-MODELS=("diagonal_cnn" "dense" "image_resnet")
+# Note: Using conv_dense instead of dense for memory efficiency on large matrices
+MODELS=("diagonal_cnn" "conv_dense" "image_resnet")
 
 for MODEL in "${MODELS[@]}"; do
     echo ""
@@ -116,16 +117,18 @@ print(f"{'Model':<15} {'Best Val Loss':<15} {'Best Val Acc':<15}")
 print("-"*45)
 for r in results:
     if r.get("task") == "classification":
-        acc = f"{r.get('best_val_acc', 'N/A'):.4f}" if isinstance(r.get('best_val_acc'), float) else "N/A"
-        print(f"{r['model']:<15} {r.get('best_val_loss', 'N/A'):<15.4f} {acc:<15}")
+        loss = f"{r['best_val_loss']:.4f}" if isinstance(r.get('best_val_loss'), (int, float)) else "N/A"
+        acc = f"{r['best_val_acc']:.4f}" if isinstance(r.get('best_val_acc'), (int, float)) else "N/A"
+        print(f"{r['model']:<15} {loss:<15} {acc:<15}")
 
 print("\n--- Regression Results ---")
 print(f"{'Model':<15} {'Best Val Loss':<15} {'Best Val MAE':<15}")
 print("-"*45)
 for r in results:
     if r.get("task") == "regression":
-        mae = f"{r.get('best_val_mae', 'N/A'):.4f}" if isinstance(r.get('best_val_mae'), float) else "N/A"
-        print(f"{r['model']:<15} {r.get('best_val_loss', 'N/A'):<15.4f} {mae:<15}")
+        loss = f"{r['best_val_loss']:.4f}" if isinstance(r.get('best_val_loss'), (int, float)) else "N/A"
+        mae = f"{r['best_val_mae']:.4f}" if isinstance(r.get('best_val_mae'), (int, float)) else "N/A"
+        print(f"{r['model']:<15} {loss:<15} {mae:<15}")
 
 print("\n" + "="*80)
 print("Note: MAE is in original scale [0.05, 0.40]")
