@@ -108,14 +108,21 @@ for TEST_DIR in "${TEST_DIRS[@]}"; do
     
     for MODEL in "${MODELS[@]}"; do
         TRAIN_OUTPUT="$OUTPUT_DIR/trained_${MODEL}"
-        MODEL_PATH="$TRAIN_OUTPUT/best_model.pt"
         
-        if [ ! -f "$MODEL_PATH" ]; then
+        # Find model - could be directly in folder or in timestamped subdirectory
+        if [ -f "$TRAIN_OUTPUT/best_model.pt" ]; then
+            MODEL_PATH="$TRAIN_OUTPUT/best_model.pt"
+        else
+            # Look for most recent subdirectory with best_model.pt
+            MODEL_PATH=$(find "$TRAIN_OUTPUT" -name "best_model.pt" -type f 2>/dev/null | head -1)
+        fi
+        
+        if [ -z "$MODEL_PATH" ] || [ ! -f "$MODEL_PATH" ]; then
             echo "  $MODEL: no trained model found, skipping"
             continue
         fi
         
-        echo "  Evaluating $MODEL..."
+        echo "  Evaluating $MODEL (using $MODEL_PATH)..."
         
         # Run evaluation
         EVAL_LOG="$OUTPUT_DIR/eval_${MODEL}_on_${TEST_SIZE}.log"
@@ -131,8 +138,9 @@ from models import create_model
 from data import BlockJacobiDataset
 from torch.utils.data import DataLoader
 
-# Load config to get model parameters
-config_path = Path('$TRAIN_OUTPUT') / 'config.json'
+# Load config to get model parameters (config.json is next to best_model.pt)
+model_path = Path('$MODEL_PATH')
+config_path = model_path.parent / 'config.json'
 if config_path.exists():
     with open(config_path) as f:
         config = json.load(f)
@@ -200,51 +208,63 @@ echo "TRANSFER LEARNING SUMMARY"
 echo "=============================================="
 
 python3 << 'PYTHON_SCRIPT'
-import pandas as pd
+import csv
 from pathlib import Path
+from collections import defaultdict
 
 results_file = Path("./experiments/transfer_study/transfer_results.csv")
-df = pd.read_csv(results_file)
 
-print("\nTransfer Results (trained on smallest size):")
+# Read CSV
+rows = []
+with open(results_file) as f:
+    reader = csv.DictReader(f)
+    rows = list(reader)
+
+if not rows:
+    print("No results found!")
+    exit(0)
+
+# Organize by model and test_size
+results = defaultdict(dict)
+models = set()
+test_sizes = set()
+train_size = rows[0]['train_size']
+
+for row in rows:
+    model = row['model']
+    test_size = row['test_size']
+    acc = row['test_accuracy']
+    models.add(model)
+    test_sizes.add(test_size)
+    results[model][test_size] = acc
+
+models = sorted(models)
+test_sizes = sorted(test_sizes, key=lambda x: int(x) if x.isdigit() else 0)
+
+print("\nTransfer Results (trained on n={}):".format(train_size))
 print("=" * 70)
 
-# Pivot table: models as rows, test sizes as columns
-pivot = df.pivot_table(
-    index='model', 
-    columns='test_size', 
-    values='test_accuracy',
-    aggfunc='first'
-)
-
-# Sort columns numerically if possible
-try:
-    pivot = pivot.reindex(sorted(pivot.columns, key=lambda x: int(x) if str(x).isdigit() else 0), axis=1)
-except:
-    pass
-
-print(pivot.to_string())
-
-# Calculate degradation
-print("\n\nAccuracy Degradation from Training Size:")
+# Header
+header = f"{'Model':<22} " + " ".join(f"n={s:<8}" for s in test_sizes)
+print(header)
 print("-" * 70)
 
-train_size = df['train_size'].iloc[0]
-for model in df['model'].unique():
-    model_df = df[df['model'] == model]
-    train_acc = model_df[model_df['test_size'] == train_size]['test_accuracy'].values
-    if len(train_acc) > 0:
-        train_acc = float(train_acc[0]) if train_acc[0] != 'N/A' else None
-        if train_acc:
-            print(f"\n{model}:")
-            for _, row in model_df.iterrows():
-                if row['test_accuracy'] != 'N/A' and row['test_size'] != train_size:
-                    test_acc = float(row['test_accuracy'])
-                    degradation = train_acc - test_acc
-                    print(f"  {train_size} → {row['test_size']}: {test_acc:.4f} (Δ = {degradation:+.4f})")
+# Rows
+for model in models:
+    row_str = f"{model:<22} "
+    for size in test_sizes:
+        acc = results[model].get(size, 'N/A')
+        if acc and acc != 'N/A':
+            try:
+                row_str += f"{float(acc)*100:>7.1f}%  "
+            except:
+                row_str += f"{acc:>8}  "
+        else:
+            row_str += "     --   "
+    print(row_str)
 
 print("\n" + "=" * 70)
-print("Results saved to: ./experiments/transfer_study/transfer_results.csv")
+print(f"Results saved to: {results_file}")
 PYTHON_SCRIPT
 
 echo ""

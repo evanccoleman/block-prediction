@@ -1,7 +1,14 @@
 #!/bin/bash
 # run_full_comparison.sh - Compare ALL model architectures
 #
-# Usage: ./scripts/run_full_comparison.sh /path/to/data/directory [epochs]
+# Usage: ./scripts/run_full_comparison.sh /path/to/data/directory [epochs] [output_name]
+#
+# Examples:
+#   ./scripts/run_full_comparison.sh dataset_128/ 50
+#   # → saves to experiments/full_comparison_n128/
+#
+#   ./scripts/run_full_comparison.sh dataset_500/ 50 my_experiment
+#   # → saves to experiments/my_experiment/
 #
 # This script compares:
 # 1. DiagonalCNN (original paper architecture, global prediction)
@@ -15,11 +22,26 @@
 
 set -e
 
-DATA_DIR=${1:?"Usage: $0 /path/to/data/directory [epochs]"}
+DATA_DIR=${1:?"Usage: $0 /path/to/data/directory [epochs] [output_name]"}
 EPOCHS=${2:-30}
-OUTPUT_DIR="./experiments/full_comparison"
+OUTPUT_NAME=${3:-""}  # Optional: custom output name
 BATCH_SIZE=16
 LR=1e-4
+
+# Detect matrix size first (needed for auto-naming)
+FIRST_JSON=$(find "$DATA_DIR" -name "*.json" -type f 2>/dev/null | head -1)
+if [ -n "$FIRST_JSON" ]; then
+    N_SIZE=$(python3 -c "import json; d=json.load(open('$FIRST_JSON')); print(d.get('matrix_properties',{}).get('size', 128))" 2>/dev/null || echo "128")
+else
+    N_SIZE=128
+fi
+
+# Set output directory: use custom name, or auto-generate from matrix size
+if [ -n "$OUTPUT_NAME" ]; then
+    OUTPUT_DIR="./experiments/$OUTPUT_NAME"
+else
+    OUTPUT_DIR="./experiments/full_comparison_n${N_SIZE}"
+fi
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -27,19 +49,9 @@ echo "=============================================="
 echo "COMPREHENSIVE MODEL COMPARISON"
 echo "=============================================="
 echo "Data directory: $DATA_DIR"
+echo "Matrix size: ${N_SIZE}x${N_SIZE}"
 echo "Epochs: $EPOCHS"
 echo "Output: $OUTPUT_DIR"
-echo ""
-
-# Detect matrix size
-FIRST_JSON=$(find "$DATA_DIR" -name "*.json" -type f 2>/dev/null | head -1)
-if [ -n "$FIRST_JSON" ]; then
-    N_SIZE=$(python3 -c "import json; d=json.load(open('$FIRST_JSON')); print(d.get('matrix_properties',{}).get('size', 128))" 2>/dev/null || echo "128")
-    echo "Detected matrix size: ${N_SIZE}x${N_SIZE}"
-else
-    N_SIZE=128
-    echo "Could not detect matrix size, using default: ${N_SIZE}x${N_SIZE}"
-fi
 echo ""
 
 # Results file
