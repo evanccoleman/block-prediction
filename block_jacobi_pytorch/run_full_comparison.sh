@@ -70,7 +70,8 @@ echo "model,task,val_loss,val_metric,metric_name,params" > "$CSV_FILE"
 # ============================================
 # GLOBAL PREDICTION MODELS
 # ============================================
-GLOBAL_MODELS=("diagonal_cnn" "scalable_diagonal" "conv_dense" "image_resnet")
+#GLOBAL_MODELS=("diagonal_cnn" "scalable_diagonal" "conv_dense" "image_resnet")
+GLOBAL_MODELS=("image_resnet")
 
 for MODEL in "${GLOBAL_MODELS[@]}"; do
     echo ""
