@@ -44,7 +44,9 @@ def parse_args():
     )
     
     parser.add_argument("--eval-dir", "-e", type=str, required=True,
-                        help="Directory with SuiteSparse matrices (from process_local_matrices.py)")
+                        help="Directory with metadata (from process_local_matrices.py)")
+    parser.add_argument("--matrices-dir", "-m", type=str, default=None,
+                        help="Directory with .mtx files (default: same as eval-dir)")
     parser.add_argument("--output", "-o", type=str, default="./wallclock_results.json",
                         help="Output JSON file")
     parser.add_argument("--num-runs", "-n", type=int, default=5,
@@ -206,26 +208,44 @@ def time_configuration(A: csr_matrix, block_frac: float, num_runs: int,
     }
 
 
-def load_matrix(eval_dir: Path, matrix_id: str) -> Optional[csr_matrix]:
-    """Load matrix from .npz or .mtx file."""
-    # Try .npz first (if saved by process_local_matrices.py with --save-raw)
-    npz_path = eval_dir / "matrices" / f"{matrix_id}.npz"
-    if npz_path.exists():
-        data = np.load(npz_path)
-        return csr_matrix((data['data'], data['indices'], data['indptr']), 
-                          shape=data['shape'])
+def load_matrix(matrices_dir: Path, matrix_id: str) -> Optional[csr_matrix]:
+    """Load matrix from .mtx file."""
+    # The matrix_id format is "Group_Name", and the file is "Group_Name.mtx"
+    mtx_path = matrices_dir / f"{matrix_id}.mtx"
     
-    # Try to find original .mtx file
-    # Check common locations
-    for pattern in [f"*{matrix_id}*.mtx", f"{matrix_id}.mtx"]:
-        matches = list(eval_dir.glob(f"**/{pattern}"))
+    if mtx_path.exists():
+        try:
+            return csr_matrix(mmread(mtx_path))
+        except Exception as e:
+            print(f"  Error loading {mtx_path}: {e}")
+            return None
+    
+    # Try without group prefix (in case naming differs)
+    # e.g., matrix_id = "HB_bcsstk01" but file might be "bcsstk01.mtx"
+    if "_" in matrix_id:
+        name_only = matrix_id.split("_", 1)[1]
+        mtx_path = matrices_dir / f"{name_only}.mtx"
+        if mtx_path.exists():
+            try:
+                return csr_matrix(mmread(mtx_path))
+            except Exception as e:
+                print(f"  Error loading {mtx_path}: {e}")
+                return None
+    
+    # Search for any matching file
+    for pattern in [f"*{matrix_id}*.mtx", f"*{matrix_id.split('_')[-1]}*.mtx"]:
+        matches = list(matrices_dir.glob(pattern))
         if matches:
-            return csr_matrix(mmread(matches[0]))
+            try:
+                return csr_matrix(mmread(matches[0]))
+            except Exception as e:
+                print(f"  Error loading {matches[0]}: {e}")
+                return None
     
     return None
 
 
-def process_matrix(eval_dir: Path, meta_file: Path, fractions: List[float],
+def process_matrix(matrices_dir: Path, meta_file: Path, fractions: List[float],
                    num_runs: int, tol: float, maxiter: int, 
                    verbose: bool) -> Optional[Dict]:
     """Process a single matrix: load and time all configurations."""
@@ -241,7 +261,7 @@ def process_matrix(eval_dir: Path, meta_file: Path, fractions: List[float],
         print(f"\nProcessing {matrix_id} (n={n}, nnz={nnz})")
     
     # Load matrix
-    A = load_matrix(eval_dir, matrix_id)
+    A = load_matrix(matrices_dir, matrix_id)
     
     if A is None:
         # Try to reconstruct from stored data or skip
@@ -411,9 +431,23 @@ def main():
     eval_dir = Path(args.eval_dir)
     meta_dir = eval_dir / "metadata"
     
+    # Determine matrices directory
+    if args.matrices_dir:
+        matrices_dir = Path(args.matrices_dir)
+    else:
+        # Default: look in eval_dir or eval_dir/matrices
+        if (eval_dir / "matrices").exists():
+            matrices_dir = eval_dir / "matrices"
+        else:
+            matrices_dir = eval_dir
+    
     if not meta_dir.exists():
         print(f"Error: Metadata directory not found: {meta_dir}")
         print("Run process_local_matrices.py first to generate metadata.")
+        sys.exit(1)
+    
+    if not matrices_dir.exists():
+        print(f"Error: Matrices directory not found: {matrices_dir}")
         sys.exit(1)
     
     fractions = args.fractions if args.fractions else FRACTION_CLASSES
@@ -421,7 +455,8 @@ def main():
     print("=" * 60)
     print("WALL-CLOCK TIMING MEASUREMENT")
     print("=" * 60)
-    print(f"Matrices directory: {eval_dir}")
+    print(f"Metadata directory: {meta_dir}")
+    print(f"Matrices directory: {matrices_dir}")
     print(f"Block fractions: {fractions}")
     print(f"Timing runs per config: {args.num_runs}")
     print(f"GMRES tolerance: {args.tol}")
@@ -442,7 +477,7 @@ def main():
             print(f"\rProcessing {i+1}/{len(meta_files)}...", end="", flush=True)
         
         result = process_matrix(
-            eval_dir, meta_file, fractions,
+            matrices_dir, meta_file, fractions,
             args.num_runs, args.tol, args.maxiter, args.verbose
         )
         
@@ -453,6 +488,16 @@ def main():
         print()
     
     print(f"\nSuccessfully processed {len(all_results)} matrices")
+    
+    if len(all_results) == 0:
+        print("\nERROR: No matrices were successfully processed.")
+        print("Check that:")
+        print(f"  1. Matrix files exist in: {matrices_dir}")
+        print(f"  2. Matrix IDs in metadata match filenames")
+        print("\nExample matrix files found:")
+        for f in list(matrices_dir.glob("*.mtx"))[:5]:
+            print(f"    {f.name}")
+        sys.exit(1)
     
     # Compute correlations
     correlations = compute_correlations(all_results)
